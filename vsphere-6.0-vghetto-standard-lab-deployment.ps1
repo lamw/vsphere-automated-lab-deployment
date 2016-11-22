@@ -178,6 +178,11 @@ $datastore = Get-Datastore -Server $pEsxi -Name $VMDatastore
 $vmhost = Get-VMHost -Server $pEsxi
 $network = Get-VirtualPortGroup -Server $pEsxi -Name $VMNetwork -VMHost $vmhost
 
+If ($datastore.Type -eq "vsan") {
+    My-Logger "VSAN Datastore detected, enabling Fake SCSI Reservations ..."
+    Get-AdvancedSetting -Entity $vmhost -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+}
+
 if($deployNestedESXiVMs -eq 1) {
     $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
         $VMName = $_.Key
