@@ -194,6 +194,12 @@ if($deployNestedESXiVMs -eq 1) {
         sleep 60
 
         $vm | Get-NetworkAdapter -Server $pEsxi | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        
+        # Add the dvfilter settings to the exisiting ethernet1 (not part of ova template)
+        My-Logger "Correcting missing dvFilter settings for Ethernet[1] ..."
+        Get-VM $vm | New-AdvancedSetting -name "ethernet1.filter4.name" -value "dvfilter-maclearn" -confirm:$false -WarningAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
+        Get-VM $vm | New-AdvancedSetting -Name "ethernet1.filter4.onFailure" -value "failOpen" -confirm:$false -WarningAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
+        # End of Change
 
         My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
         Set-VM -Server $pEsxi -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
