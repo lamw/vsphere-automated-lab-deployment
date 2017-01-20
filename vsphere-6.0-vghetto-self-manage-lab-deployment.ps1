@@ -198,10 +198,13 @@ if($deployNestedESXiVMs -eq 1) {
         My-Logger "Deploying Nested ESXi VM $VMName ..."
         $vm = Import-VApp -Server $pEsxi -Source $NestedESXiApplianceOVA -Name $VMName -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
-        sleep 60
-
         My-Logger "Updating VM Network ..."
-        $vm | Get-NetworkAdapter -Server $pEsxi | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        foreach($networkAdapter in ($vm | Get-NetworkAdapter))
+        {
+            My-Logger "Configuring adapter $networkAdapter in $vm"
+            $networkAdapter | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            sleep 5
+        }
 
         My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
         Set-VM -Server $pEsxi -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
