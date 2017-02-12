@@ -3,6 +3,7 @@
 ## Table of Contents
 
 * [Description](#Description)
+* [Changelog](#Changelog)
 * [Requirements](#requirements)
 * [Supported Deployments](#supported-deployments)
 * [Scripts](#scripts)
@@ -15,8 +16,21 @@
 
 Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that includes a set of Nested ESXi Virtual Appliance(s) configured w/vSAN as well as a vCenter Server Appliance (VCSA) using PowerCLI. For information, you can refer to this blog post [here](http://www.virtuallyghetto.com/2016/11/vghetto-automated-vsphere-lab-deployment-for-vsphere-6-0u2-vsphere-6-5.html) for more details.
 
+## Changelog
+
+* 11/22/16
+  * Automatically handle Nested ESXi on vSAN
+
+* 01/20/17
+  * Resolved "Another task in progress" thanks to Jason M
+
+* 02/12/17
+  * Support for deploying to VC Target
+  * Support for enabling SSH on VCSA
+  * Added option to auto-create vApp Container for VMs
+
 ## Requirements
-* 1 x Physical ESXi host running at least vSphere 6.0u2
+* 1 x Physical ESXi host or vCenter Server running at least vSphere 6.0u2
 * Windows system
 * [PowerCLI 6.5 R1](https://my.vmware.com/group/vmware/details?downloadGroup=PCLI650R1&productId=568)
 * vCenter Server Appliance (VCSA) 6.0 or 6.5 extracted ISO
@@ -42,13 +56,18 @@ Here is a quick diagram to help illustrate the two deployment scenarios. The pES
 
 ## Configuration
 
-There are 6 sections at the top of the script which requires you to update the variables with your own environment configuration.
+There are 7 sections at the top of the script which requires you to update the variables with your own environment configuration.
 
-This section describes the credentials to your physical ESXi server in which the vSphere lab environment will be deployed to:
+This section describes the credentials to your physical ESXi server or vCenter Server in which the vSphere lab environment will be deployed to:
 ```console
 $VIServer = "himalaya.primp-industries.com"
 $VIUsername = "root"
 $VIPassword = "vmware123"
+```
+
+This section describes whether your deployment environment (destination) will be an ESXi host or a vCenter Server. You will need to specify either **ESXI** or **VCENTER** keyword:
+```console
+$DeploymentTarget = "ESXI"
 ```
 
 This section defines the number of Nested ESXi VMs to deploy along with their associated IP Address(s). The names are merely the display name of the VMs when deployed. At a minimum, you should deploy at least three hosts, but you can always add additional hosts and the script will automatically take care of provisioning them correctly.
@@ -79,6 +98,7 @@ $VCSASSODomainName = "vghetto.local"
 $VCSASSOSiteName = "virtuallyGhetto"
 $VCSASSOPassword = "VMware1!"
 $VCSARootPassword = "VMware1!"
+$VCSASSHEnable = "true"
 ```
 
 This section describes the location as well as the generic networking settings applied to BOTH the Nested ESXi VM and VCSA.
@@ -94,6 +114,7 @@ $VMDomain = "primp-industries.com"
 $VMSyslog = "172.30.0.170"
 $VMSSH = "true"
 $VMVMFS = "false"
+$VMCluster = "Primp-Cluster"
 ```
 
 This section describes the configuration of the new vCenter Server from the deployed VCSA.
