@@ -6,11 +6,25 @@
 #               with the VCSA then being deployed to the inner-Nested ESXi VMs as a self-managed VC
 # Reference: http://www.virtuallyghetto.com/2016/11/vghetto-automated-vsphere-lab-deployment-for-vsphere-6-0u2-vsphere-6-5.html
 # Credit: Thanks to Alan Renouf as I borrowed some of his PCLI code snippets :)
+#
+# Changelog
+# 11/22/16
+#   * Automatically handle Nested ESXi on vSAN
+# 01/20/17
+#   * Resolved "Another task in progress" thanks to Jason M
+# 02/12/17
+#   * Support for deploying to VC Target
+#   * Support for enabling SSH on VCSA
+#   * Added option to auto-create vApp Container for VMs
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.0 lab
-$VIServer = "himalaya.primp-industries.com"
-$VIUsername = "root"
-$VIPassword = "vmware123"
+$VIServer = "vcenter.primp-industries.com"
+$VIUsername = "administrator@vsphere.local"
+$VIPassword = "!!!MySuperDuperSecurePassword!!!"
+
+# Specifies whether deployment is to an ESXi host or vCenter Server
+# Use either ESXI or VCENTER
+$DeploymentTarget = "VCENTER"
 
 # Full Path to both the Nested ESXi 6.0 VA + extracted VCSA 6.0 ISO
 $NestedESXiApplianceOVA = "C:\Users\primp\Desktop\Nested_ESXi6.x_Appliance_Template_v5.ova"
@@ -44,7 +58,7 @@ $VCSASSOPassword = "VMware1!"
 $VCSARootPassword = "VMware1!"
 
 # General Deployment Configuration for both Nested ESXi VMs + VCSA
-$VMNetwork = "dv-access333-dev"
+$VMNetwork = "access333"
 $VMDatastore = "himalaya-local-SATA-dc3500-2"
 $VMNetmask = "255.255.255.0"
 $VMGateway = "172.30.0.1"
@@ -56,6 +70,8 @@ $VMSyslog = "172.30.0.170"
 # Applicable to Nested ESXi only
 $VMSSH = "true"
 $VMVMFS = "false"
+# Applicable to VC Deployment Target only
+$VMCluster = "Primp-Cluster"
 
 # Name of new vSphere Datacenter/Cluster when VCSA is deployed
 $NewVCDatacenterName = "Datacenter"
@@ -66,7 +82,10 @@ $NewVCVSANClusterName = "VSAN-Cluster"
 $verboseLogFile = "vsphere60-vghetto-lab-deployment.log"
 $vSphereVersion = "6.0u2"
 $deploymentType = "Self Managed"
+$random_string = -join ((65..90) + (97..122) | Get-Random -Count 8 | % {[char]$_})
+$VAppName = "vGhetto-Nested-vSphere-Lab-$vSphereVersion-$random_string"
 
+$preCheck = 1
 $confirmDeployment = 1
 $deployNestedESXiVMs = 1
 $bootStrapFirstNestedESXiVM = 1
@@ -92,6 +111,18 @@ Function My-Logger {
     $logMessage | Out-File -Append -LiteralPath $verboseLogFile
 }
 
+if($preCheck -eq 1) {
+    if(!(Test-Path $NestedESXiApplianceOVA)) {
+        Write-Host -ForegroundColor Red "`nUnable to find $NestedESXiApplianceOVA ...`nexiting"
+        exit
+    }
+
+    if(!(Test-Path $VCSAInstallerPath)) {
+        Write-Host -ForegroundColor Red "`nUnable to find $VCSAInstallerPath ...`nexiting"
+        exit
+    }
+}
+
 if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor Magenta "`nPlease confirm the following configuration will be deployed:`n"
 
@@ -105,17 +136,28 @@ if($confirmDeployment -eq 1) {
     Write-Host -NoNewline -ForegroundColor Green "VCSA Image Path: "
     Write-Host -ForegroundColor White $VCSAInstallerPath
 
-    Write-Host -ForegroundColor Yellow "`n---- Physical ESXi Configuration ----"
-    Write-Host -NoNewline -ForegroundColor Green "ESXi Address: "
+    if($DeploymentTarget -eq "ESXI") {
+        Write-Host -ForegroundColor Yellow "`n---- Physical ESXi Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "ESXi Address: "
+    } else {
+        Write-Host -ForegroundColor Yellow "`n---- vCenter Server Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "vCenter Server Address: "
+    }
+
     Write-Host -ForegroundColor White $VIServer
     Write-Host -NoNewline -ForegroundColor Green "Username: "
     Write-Host -ForegroundColor White $VIUsername
-    Write-Host -NoNewline -ForegroundColor Green "Password: "
-    Write-Host -ForegroundColor White $VIPassword
     Write-Host -NoNewline -ForegroundColor Green "VM Network: "
     Write-Host -ForegroundColor White $VMNetwork
     Write-Host -NoNewline -ForegroundColor Green "VM Storage: "
     Write-Host -ForegroundColor White $VMDatastore
+
+    if($DeploymentTarget -eq "VCENTER") {
+        Write-Host -NoNewline -ForegroundColor Green "VM Cluster: "
+        Write-Host -ForegroundColor White $VMCluster
+        Write-Host -NoNewline -ForegroundColor Green "VM vApp: "
+        Write-Host -ForegroundColor White $VAppName
+    }
 
     Write-Host -ForegroundColor Yellow "`n---- vESXi Configuration ----"
     Write-Host -NoNewline -ForegroundColor Green "# of Nested ESXi VMs: "
@@ -160,6 +202,8 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor White $VCSASSOPassword
     Write-Host -NoNewline -ForegroundColor Green "Root Password: "
     Write-Host -ForegroundColor White $VCSARootPassword
+    Write-Host -NoNewline -ForegroundColor Green "Enable SSH: "
+    Write-Host -ForegroundColor White $VCSASSHEnable
     Write-Host -NoNewline -ForegroundColor Green "Hostname: "
     Write-Host -ForegroundColor White $VCSAHostname
     Write-Host -NoNewline -ForegroundColor Green "IP Address: "
@@ -168,7 +212,6 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor White $VMNetmask
     Write-Host -NoNewline -ForegroundColor Green "Gateway: "
     Write-Host -ForegroundColor White $VMGateway
-
 
     Write-Host -ForegroundColor Magenta "`nWould you like to proceed with this deployment?`n"
     $answer = Read-Host -Prompt "Do you accept (Y or N)"
@@ -180,109 +223,171 @@ if($confirmDeployment -eq 1) {
 
 if($deployNestedESXiVMs -eq 1) {
     My-Logger "Connecting to $VIServer ..."
-    $pEsxi = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -WarningAction SilentlyContinue
+    $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -WarningAction SilentlyContinue
 
-    $datastore = Get-Datastore -Server $pEsxi -Name $VMDatastore
-    $vmhost = Get-VMHost -Server $pEsxi
-    $network = Get-VirtualPortGroup -Server $pEsxi -Name $VMNetwork -VMHost $vmhost
+    if($DeploymentTarget -eq "ESXI") {
+        $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore
+        $vmhost = Get-VMHost -Server $viConnection
+        $network = Get-VirtualPortGroup -Server $viConnection -Name $VMNetwork -VMHost $vmhost
 
-    If ($datastore.Type -eq "vsan") {
-        My-Logger "VSAN Datastore detected, enabling Fake SCSI Reservations ..."
-        Get-AdvancedSetting -Entity $vmhost -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        if($datastore.Type -eq "vsan") {
+            My-Logger "VSAN Datastore detected, enabling Fake SCSI Reservations ..."
+            Get-AdvancedSetting -Entity $vmhost -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        }
+    } else {
+        $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore | Select -First 1
+        $network = Get-VirtualPortGroup -Server $viConnection -Name $VMNetwork | Select -First 1
+        $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
+        $datacenter = $cluster | Get-Datacenter
+        $vmhost = $cluster | Get-VMHost | Select -First 1
     }
 
-    $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
-        $VMName = $_.Key
-        $VMIPAddress = $_.Value
+    if($DeploymentTarget -eq "ESXI") {
+        $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
+            $VMName = $_.Key
+            $VMIPAddress = $_.Value
 
-        My-Logger "Deploying Nested ESXi VM $VMName ..."
-        $vm = Import-VApp -Server $pEsxi -Source $NestedESXiApplianceOVA -Name $VMName -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+            My-Logger "Deploying Nested ESXi VM $VMName ..."
+            $vm = Import-VApp -Server $viConnection -Source $NestedESXiApplianceOVA -Name $VMName -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
-        My-Logger "Updating VM Network ..."
-        foreach($networkAdapter in ($vm | Get-NetworkAdapter))
-        {
-            My-Logger "Configuring adapter $networkAdapter in $vm"
-            $networkAdapter | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
-            sleep 5
+            My-Logger "Updating VM Network ..."
+            foreach($networkAdapter in ($vm | Get-NetworkAdapter))
+            {
+                My-Logger "Configuring adapter $networkAdapter in $vm"
+                $networkAdapter | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+                sleep 5
+            }
+
+            My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
+            Set-VM -Server $viConnection -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+
+            My-Logger "Updating vSAN Caching VMDK size to $NestedESXiCachingvDisk GB ..."
+            Get-HardDisk -Server $viConnection -VM $vm -Name "Hard disk 2" | Set-HardDisk -CapacityGB $NestedESXiCachingvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+
+            My-Logger "Updating vSAN Capacity VMDK size to $NestedESXiCapacityvDisk GB ..."
+            Get-HardDisk -Server $viConnection -VM $vm -Name "Hard disk 3" | Set-HardDisk -CapacityGB $NestedESXiCapacityvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+
+            $orignalExtraConfig = $vm.ExtensionData.Config.ExtraConfig
+            $a = New-Object VMware.Vim.OptionValue
+            $a.key = "guestinfo.hostname"
+            $a.value = $VMName
+            $b = New-Object VMware.Vim.OptionValue
+            $b.key = "guestinfo.ipaddress"
+            $b.value = $VMIPAddress
+            $c = New-Object VMware.Vim.OptionValue
+            $c.key = "guestinfo.netmask"
+            $c.value = $VMNetmask
+            $d = New-Object VMware.Vim.OptionValue
+            $d.key = "guestinfo.gateway"
+            $d.value = $VMGateway
+            $e = New-Object VMware.Vim.OptionValue
+            $e.key = "guestinfo.dns"
+            $e.value = $VMDNS
+            $f = New-Object VMware.Vim.OptionValue
+            $f.key = "guestinfo.domain"
+            $f.value = $VMDomain
+            $g = New-Object VMware.Vim.OptionValue
+            $g.key = "guestinfo.ntp"
+            $g.value = $VMNTP
+            $h = New-Object VMware.Vim.OptionValue
+            $h.key = "guestinfo.syslog"
+            $h.value = $VMSyslog
+            $i = New-Object VMware.Vim.OptionValue
+            $i.key = "guestinfo.password"
+            $i.value = $VMPassword
+            $j = New-Object VMware.Vim.OptionValue
+            $j.key = "guestinfo.ssh"
+            $j.value = $VMSSH
+            $k = New-Object VMware.Vim.OptionValue
+            $k.key = "guestinfo.createvmfs"
+            $k.value = $VMVMFS
+            $orignalExtraConfig+=$a
+            $orignalExtraConfig+=$b
+            $orignalExtraConfig+=$c
+            $orignalExtraConfig+=$d
+            $orignalExtraConfig+=$e
+            $orignalExtraConfig+=$f
+            $orignalExtraConfig+=$g
+            $orignalExtraConfig+=$h
+            $orignalExtraConfig+=$i
+            $orignalExtraConfig+=$j
+            $orignalExtraConfig+=$k
+
+            $spec = New-Object VMware.Vim.VirtualMachineConfigSpec
+            $spec.ExtraConfig = $orignalExtraConfig
+
+            My-Logger "Adding guestinfo customization properties to $vmname ..."
+            $task = $vm.ExtensionData.ReconfigVM_Task($spec)
+            $task1 = Get-Task -Id ("Task-$($task.value)")
+            $task1 | Wait-Task | Out-File -Append -LiteralPath $verboseLogFile
+
+            My-Logger "Powering On $vmname ..."
+            Start-VM -Server $viConnection -VM $vm -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
         }
+    } else {
+        $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
+            $VMName = $_.Key
+            $VMIPAddress = $_.Value
 
-        My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
-        Set-VM -Server $pEsxi -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            $ovfconfig = Get-OvfConfiguration $NestedESXiApplianceOVA
+            $ovfconfig.NetworkMapping.VM_Network.value = $VMNetwork
 
-        My-Logger "Updating vSAN Caching VMDK size to $NestedESXiCachingvDisk GB ..."
-        Get-HardDisk -Server $pEsxi -VM $vm -Name "Hard disk 2" | Set-HardDisk -CapacityGB $NestedESXiCachingvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            $ovfconfig.common.guestinfo.hostname.value = $VMName
+            $ovfconfig.common.guestinfo.ipaddress.value = $VMIPAddress
+            $ovfconfig.common.guestinfo.netmask.value = $VMNetmask
+            $ovfconfig.common.guestinfo.gateway.value = $VMGateway
+            $ovfconfig.common.guestinfo.dns.value = $VMDNS
+            $ovfconfig.common.guestinfo.domain.value = $VMDomain
+            $ovfconfig.common.guestinfo.ntp.value = $VMNTP
+            $ovfconfig.common.guestinfo.syslog.value = $VMSyslog
+            $ovfconfig.common.guestinfo.password.value = $VMPassword
+            if($VMSSH -eq "true") {
+                $VMSSHVar = $true 
+            } else {
+                $VMSSHVar = $false
+            }
+            $ovfconfig.common.guestinfo.ssh.value = $VMSSHVar
 
-        My-Logger "Updating vSAN Capacity VMDK size to $NestedESXiCapacityvDisk GB ..."
-        Get-HardDisk -Server $pEsxi -VM $vm -Name "Hard disk 3" | Set-HardDisk -CapacityGB $NestedESXiCapacityvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            My-Logger "Deploying Nested ESXi VM $VMName ..."
+            $vm = Import-VApp -Source $NestedESXiApplianceOVA -OvfConfiguration $ovfconfig -Name $VMName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
-        $orignalExtraConfig = $vm.ExtensionData.Config.ExtraConfig
-        $a = New-Object VMware.Vim.OptionValue
-        $a.key = "guestinfo.hostname"
-        $a.value = $VMName
-        $b = New-Object VMware.Vim.OptionValue
-        $b.key = "guestinfo.ipaddress"
-        $b.value = $VMIPAddress
-        $c = New-Object VMware.Vim.OptionValue
-        $c.key = "guestinfo.netmask"
-        $c.value = $VMNetmask
-        $d = New-Object VMware.Vim.OptionValue
-        $d.key = "guestinfo.gateway"
-        $d.value = $VMGateway
-        $e = New-Object VMware.Vim.OptionValue
-        $e.key = "guestinfo.dns"
-        $e.value = $VMDNS
-        $f = New-Object VMware.Vim.OptionValue
-        $f.key = "guestinfo.domain"
-        $f.value = $VMDomain
-        $g = New-Object VMware.Vim.OptionValue
-        $g.key = "guestinfo.ntp"
-        $g.value = $VMNTP
-        $h = New-Object VMware.Vim.OptionValue
-        $h.key = "guestinfo.syslog"
-        $h.value = $VMSyslog
-        $i = New-Object VMware.Vim.OptionValue
-        $i.key = "guestinfo.password"
-        $i.value = $VMPassword
-        $j = New-Object VMware.Vim.OptionValue
-        $j.key = "guestinfo.ssh"
-        $j.value = $VMSSH
-        $k = New-Object VMware.Vim.OptionValue
-        $k.key = "guestinfo.createvmfs"
-        $k.value = $VMVMFS
-        $orignalExtraConfig+=$a
-        $orignalExtraConfig+=$b
-        $orignalExtraConfig+=$c
-        $orignalExtraConfig+=$d
-        $orignalExtraConfig+=$e
-        $orignalExtraConfig+=$f
-        $orignalExtraConfig+=$g
-        $orignalExtraConfig+=$h
-        $orignalExtraConfig+=$i
-        $orignalExtraConfig+=$j
-        $orignalExtraConfig+=$k
+            My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
+            Set-VM -Server $viConnection -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
-        $spec = New-Object VMware.Vim.VirtualMachineConfigSpec
-        $spec.ExtraConfig = $orignalExtraConfig
+            My-Logger "Updating vSAN Caching VMDK size to $NestedESXiCachingvDisk GB ..."
+            Get-HardDisk -Server $viConnection -VM $vm -Name "Hard disk 2" | Set-HardDisk -CapacityGB $NestedESXiCachingvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
-        My-Logger "Adding guestinfo customization properties to $vmname ..."
-        $task = $vm.ExtensionData.ReconfigVM_Task($spec)
-        $task1 = Get-Task -Id ("Task-$($task.value)")
-        $task1 | Wait-Task | Out-File -Append -LiteralPath $verboseLogFile
+            My-Logger "Updating vSAN Capacity VMDK size to $NestedESXiCapacityvDisk GB ..."
+            Get-HardDisk -Server $viConnection -VM $vm -Name "Hard disk 3" | Set-HardDisk -CapacityGB $NestedESXiCapacityvDisk -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
-        My-Logger "Powering On $vmname ..."
-        Start-VM -Server $pEsxi -VM $vm -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            My-Logger "Powering On $vmname ..."
+            $vm | Start-Vm -RunAsync | Out-Null
+        }
+    }
+
+    if($moveVMsIntovApp -eq 1) {
+        My-Logger "Creating vApp $VAppName ..."
+        $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
+
+        if($deployNestedESXiVMs -eq 1) {
+            My-Logger "Moving Nested ESXi VMs into $VAppName vApp ..."
+            $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
+                $vm = Get-VM -Name $_.Key -Server $viConnection
+                Move-VM -VM $vm -Server $viConnection -Destination $VApp -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            }
+        }
     }
 
     My-Logger "Disconnecting from $VIServer ..."
-    Disconnect-VIServer $pEsxi -Confirm:$false
+    Disconnect-VIServer $viConnection -Confirm:$false
 }
 
 if($bootStrapFirstNestedESXiVM -eq 1) {
     do {
         My-Logger "Waiting for $bootStrapNode to be ready on network ..."
-        $ping = test-connection -comp servername -Quiet
-        sleep 5
-    } until (!$ping)
+        $ping = test-connection $bootStrapNode -Quiet
+        sleep 60
+    } until ($ping -contains "True")
 
     My-Logger "Connecting to ESXi bootstrap node ..."
     $vEsxi = Connect-VIServer -Server $bootStrapNode -User root -Password $VMPassword -WarningAction SilentlyContinue
@@ -350,6 +455,12 @@ if($deployVCSA -eq 1) {
     $config.'target.vcsa'.network.prefix = $VCSAPrefix
     $config.'target.vcsa'.network.gateway = $VMGateway
     $config.'target.vcsa'.network.hostname = $VCSAHostname
+    if($VCSASSHEnable -eq "true") {
+        $VCSASSHEnableVar = $true
+    } else {
+        $VCSASSHEnableVar = $false
+    }
+    $config.'target.vcsa'.os.'ssh.enable' = $VCSASSHEnableVar
     $config.'target.vcsa'.os.password = $VCSARootPassword
     $config.'target.vcsa'.sso.password = $VCSASSOPassword
     $config.'target.vcsa'.sso.'domain-name' = $VCSASSODomainName
