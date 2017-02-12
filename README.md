@@ -2,13 +2,8 @@
 
 ## Table of Contents
 
-<<<<<<< HEAD
 * [Description](#description)
 * [Changelog](#changelog)
-=======
-* [Description](#Description)
-* [Changelog](#Changelog)
->>>>>>> d3f2e6a7e4d577ef769877cc87b7d06f5667ab91
 * [Requirements](#requirements)
 * [Supported Deployments](#supported-deployments)
 * [Scripts](#scripts)
