@@ -441,7 +441,7 @@ if($deployVCSA -eq 1) {
     }
 }
 
-if($moveVMsIntovApp -eq 1) {
+if($moveVMsIntovApp -eq 1 -and $DeploymentTarget -eq "VCENTER") {
     My-Logger "Creating vApp $VAppName ..."
     $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
 
