@@ -16,6 +16,9 @@
 #   * Support for deploying to VC Target
 #   * Support for enabling SSH on VCSA
 #   * Added option to auto-create vApp Container for VMs
+#   * Added pre-check for required files
+# 02/17/17
+#   * Added missing dvFilter param to eth1 (missing in Nested ESXi OVA)
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.0 lab
 $VIServer = "vcenter.primp-industries.com"
@@ -301,6 +304,12 @@ if($deployNestedESXiVMs -eq 1) {
             $k = New-Object VMware.Vim.OptionValue
             $k.key = "guestinfo.createvmfs"
             $k.value = $VMVMFS
+            $l = New-Object VMware.Vim.OptionValue
+            $l.key = "ethernet1.filter4.name"
+            $l.value = "dvfilter-maclearn"
+            $m = New-Object VMware.Vim.OptionValue
+            $m.key = "ethernet1.filter4.onFailure"
+            $m.value = "failOpen"
             $orignalExtraConfig+=$a
             $orignalExtraConfig+=$b
             $orignalExtraConfig+=$c
@@ -312,6 +321,8 @@ if($deployNestedESXiVMs -eq 1) {
             $orignalExtraConfig+=$i
             $orignalExtraConfig+=$j
             $orignalExtraConfig+=$k
+            $orignalExtraConfig+=$l
+            $orignalExtraConfig+=$m
 
             $spec = New-Object VMware.Vim.VirtualMachineConfigSpec
             $spec.ExtraConfig = $orignalExtraConfig
@@ -350,6 +361,11 @@ if($deployNestedESXiVMs -eq 1) {
 
             My-Logger "Deploying Nested ESXi VM $VMName ..."
             $vm = Import-VApp -Source $NestedESXiApplianceOVA -OvfConfiguration $ovfconfig -Name $VMName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+
+            # Add the dvfilter settings to the exisiting ethernet1 (not part of ova template)
+            My-Logger "Correcting missing dvFilter settings for Ethernet[1] ..."
+            $vm | New-AdvancedSetting -name "ethernet1.filter4.name" -value "dvfilter-maclearn" -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            $vm | New-AdvancedSetting -Name "ethernet1.filter4.onFailure" -value "failOpen" -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
             My-Logger "Updating vCPU Count to $NestedESXivCPU & vMEM to $NestedESXivMEM GB ..."
             Set-VM -Server $viConnection -VM $vm -NumCpu $NestedESXivCPU -MemoryGB $NestedESXivMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
