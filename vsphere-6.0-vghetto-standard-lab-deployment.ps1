@@ -147,8 +147,6 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor White $VIServer
     Write-Host -NoNewline -ForegroundColor Green "Username: "
     Write-Host -ForegroundColor White $VIUsername
-    Write-Host -NoNewline -ForegroundColor Green "Password: "
-    Write-Host -ForegroundColor White $VIPassword
     Write-Host -NoNewline -ForegroundColor Green "VM Network: "
     Write-Host -ForegroundColor White $VMNetwork
     Write-Host -NoNewline -ForegroundColor Green "VM Storage: "
