@@ -150,7 +150,7 @@ This section describes the configuration of the new vCenter Server from the depl
 ```console
 $NewVCDatacenterName = "Datacenter"
 $NewVCVSANClusterName = "VSAN-Cluster"
-``
+```
 
 This section describes the NSX configuration if you choose to deploy which will require you to set $DeployNSX property to 1 and fill out all fields.
 ```console
@@ -166,7 +166,7 @@ $NSXSSHEnable = "true"
 $NSXCEIPEnable = "false"
 $NSXUIPassword = "VMw@re123!"
 $NSXCLIPassword = "VMw@re123!"
-``
+```
 
 This section describes the VDS and VXLAN configurations which is required for NSX deployment. The only mandatory field here is $PrivateVXLANVMnetwork which is a private portgroup that must already exists which will be used to connect the second network adapter of the Nested ESXi VM for VXLAN traffic. You do not need a routable portgroup and the other properties can be left as default or you can modify them if you wish.
 ```console
