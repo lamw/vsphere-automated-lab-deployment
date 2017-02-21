@@ -52,6 +52,8 @@ Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that
 * [PowerNSX](https://github.com/vmware/powernsx) installed and loaded (required if you plan to do NSX 6.3 deployment)
 * vCenter Server Appliance (VCSA) 6.0 or 6.5 extracted ISO
 * Nested ESXi [6.0](http://www.virtuallyghetto.com/2015/12/deploying-nested-esxi-is-even-easier-now-with-the-esxi-virtual-appliance.html) or [6.5](http://www.virtuallyghetto.com/2016/11/esxi-6-5-virtual-appliance-is-now-available.html) Virtual Appliance OVA
+* [NSX 6.3 OVA](https://my.vmware.com/web/vmware/details?downloadGroup=NSXV_630&productId=417&rPId=14427) (optional)
+  * [ESXi 6.5a offline patch bundle](https://my.vmware.com/web/vmware/details?downloadGroup=ESXI650A&productId=614&rPId=14229) (extracted)
 
 ## Supported Deployments
 
