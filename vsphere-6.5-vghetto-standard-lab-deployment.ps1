@@ -40,13 +40,15 @@ $DeploymentTarget = "VCENTER"
 $NestedESXiApplianceOVA = "C:\Users\primp\Desktop\Nested_ESXi6.5_Appliance_Template_v1.ova"
 $VCSAInstallerPath = "C:\Users\primp\Desktop\VMware-VCSA-all-6.5.0-4944578"
 $NSXOVA =  "C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova"
+$ESXi65OfflineBundle = "C:\Users\primp\Desktop\ESXi650-201704001\metadata.zip" # Used for offline upgrade only
+$ESXiProfileName = "ESXi-6.5.0-20170404001-standard" # Used for online upgrade only
 
 # Nested ESXi VMs to deploy
 $NestedESXiHostnameToIPs = @{
 "vesxi65-1" = "172.30.0.4"
 "vesxi65-2" = "172.30.0.5"
 "vesxi65-3" = "172.30.0.82"
-"vesti65-4" = "172.30.0.200"
+"vesxi65-4" = "172.30.0.200"
 }
 
 # Nested ESXi VM Resources
@@ -112,9 +114,10 @@ $VXLANNetmask = "255.255.255.0"
 # Advanced Configurations
 # Set to 1 only if you have DNS (forward/reverse) for ESXi hostnames
 $addHostByDnsName = 0
-# Upgrade vESXi hosts to 6.5a
+# Upgrade vESXi hosts (defaults to pulling upgrade from VMware using profile specified in $ESXiProfileName)
 $upgradeESXi = 0
-$ESXiProfileName = "ESXi-6.5.0-20170404001-standard"
+# Set to 1 only if you want to upgrade using local bundle specified in $ESXi65OfflineBundle
+$offlineUpgrade = 0
 
 #### DO NOT EDIT BEYOND HERE ####
 
@@ -171,6 +174,25 @@ Function My-Logger {
     $logMessage | Out-File -Append -LiteralPath $verboseLogFile
 }
 
+Function URL-Check([string] $url) {
+    $isWorking = $true
+
+    try {
+        $request = [System.Net.WebRequest]::Create($url)
+        $request.Method = "HEAD"
+        $request.UseDefaultCredentials = $true
+
+        $response = $request.GetResponse()
+        $httpStatus = $response.StatusCode
+
+        $isWorking = ($httpStatus -eq "OK")
+    }
+    catch {
+        $isWorking = $false
+    }
+    return $isWorking
+}
+
 if($preCheck -eq 1) {
     if(!(Test-Path $NestedESXiApplianceOVA)) {
         Write-Host -ForegroundColor Red "`nUnable to find $NestedESXiApplianceOVA ...`nexiting"
@@ -192,7 +214,20 @@ if($preCheck -eq 1) {
             Write-Host -ForegroundColor Red "`nPowerNSX Module is not loaded, please install and load PowerNSX before running script ...`nexiting"
             exit
         }
-        $upgradeESXiTo65a = 1
+        $upgradeESXi = 1
+    }
+
+    if($upgradeESXi -eq 1) {
+        if($offlineUpgrade -eq 1) {
+            if(!(Test-Path $ESXi65OfflineBundle)) {
+                Write-Host -ForegroundColor Red "`nUnable to find $ESXi65OfflineBundle ...`nexiting"
+                exit
+            }
+        }
+        if(!(URL-Check($depotServer))) {
+            Write-Host -ForegroundColor Red "`nVMware depot server is unavailable ...`nexiting"
+            exit
+        }
     }
 }
 
