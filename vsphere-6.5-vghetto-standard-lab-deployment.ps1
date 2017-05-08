@@ -26,6 +26,9 @@
 #   * Support for both Virtual & Distributed Portgroup on $VMNetwork
 #   * Support for adding ESXi hosts into VC using DNS name (disabled by default)
 #   * Added CPU/MEM/Storage resource requirements in confirmation screen
+# 05/08/17
+#   * Support for patching ESXi using VMware Online repo thanks to Matt Lichstein for contribution
+#   * Added fix to test ESXi endpoint before trying to patch
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.5 lab
 $VIServer = "vcenter.primp-industries.com"
@@ -471,6 +474,11 @@ if($deployNestedESXiVMs -eq 1) {
             My-Logger "Deploying Nested ESXi VM $VMName ..."
             $vm = Import-VApp -Server $viConnection -Source $NestedESXiApplianceOVA -Name $VMName -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
+            # Add the dvfilter settings to the exisiting ethernet1 (not part of ova template)
+            My-Logger "Correcting missing dvFilter settings for Eth1 ..."
+            $vm | New-AdvancedSetting -name "ethernet1.filter4.name" -value "dvfilter-maclearn" -confirm:$false -ErrorAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
+            $vm | New-AdvancedSetting -Name "ethernet1.filter4.onFailure" -value "failOpen" -confirm:$false -ErrorAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
+
             My-Logger "Updating VM Network ..."
             $vm | Get-NetworkAdapter -Name "Network adapter 1" | Set-NetworkAdapter -Portgroup $network -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
             sleep 5
@@ -584,8 +592,8 @@ if($deployNestedESXiVMs -eq 1) {
 
             # Add the dvfilter settings to the exisiting ethernet1 (not part of ova template)
             My-Logger "Correcting missing dvFilter settings for Eth1 ..."
-            $vm | New-AdvancedSetting -name "ethernet1.filter4.name" -value "dvfilter-maclearn" -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
-            $vm | New-AdvancedSetting -Name "ethernet1.filter4.onFailure" -value "failOpen" -confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            $vm | New-AdvancedSetting -name "ethernet1.filter4.name" -value "dvfilter-maclearn" -confirm:$false -ErrorAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
+            $vm | New-AdvancedSetting -Name "ethernet1.filter4.onFailure" -value "failOpen" -confirm:$false -ErrorAction SilentlyContinue | Out-File -Append -LiteralPath $verboseLogFile
 
             if($DeployNSX -eq 1) {
                 My-Logger "Connecting Eth1 to $privateNetwork ..."
@@ -651,6 +659,22 @@ if($upgradeESXi -eq 1) {
         $VMIPAddress = $_.Value
 
         My-Logger "Connecting directly to $VMName for ESXi upgrade ..."
+        while(1) {
+            try {
+                $results = Invoke-WebRequest -Uri https://$VMIPAddress/ui -Method GET
+                if($results.StatusCode -eq 200) {
+                    break
+                }
+            }
+            catch {
+                My-Logger "$VMName is not ready yet, sleeping 30seconds ..."
+                sleep 30
+            }
+        }
+        # This is apparently needed due to patching using online image profile taking longer
+        Set-PowerCLIConfiguration -WebOperationTimeoutSeconds 900 -Scope Session -Confirm:$false | Out-Null
+
+        My-Logger "Connecting directly to $VMName for ESXi upgrade ..."
         $vESXi = Connect-VIServer -Server $VMIPAddress -User root -Password $VMPassword -WarningAction SilentlyContinue
 
         My-Logger "Entering Maintenance Mode ..."
@@ -661,12 +685,12 @@ if($upgradeESXi -eq 1) {
             Install-VMHostPatch -VMHost $VMIPAddress -LocalPath $ESXi65OfflineBundle -HostUsername root -HostPassword $VMPassword -WarningAction SilentlyContinue -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
         }
         else {
-            My-Logger "Upgrading $VMName image profile ..."
+            My-Logger "Upgrading $VMName using Image Profile $ESXiProfileName ..."
             $esxcli = Get-EsxCli -VMHost $VMIPAddress -V2
             $esxcli.network.firewall.ruleset.set.Invoke(@{enabled = 'true' ; rulesetid = 'httpClient'}) | Out-Null 
             $esxcli.software.profile.update.Invoke(@{profile = $ESXiProfileName; depot = $depotServer}) | Out-File -Append -LiteralPath $verboseLogFile
         }
-        
+
         My-Logger "Rebooting $VMName ..."
         Restart-VMHost $VMIPAddress -RunAsync -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
