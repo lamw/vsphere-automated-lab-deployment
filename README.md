@@ -45,6 +45,10 @@ Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that
   * Support for adding ESXi hosts into VC using DNS name (disabled by default)
   * Added CPU/MEM/Storage resource requirements in confirmation screen
 
+* **05/08/17**
+  * Support for patching ESXi using VMware Online repo thanks to Matt Lichstein for contribution
+  * Added fix to test ESXi endpoint before trying to patch
+
 ## Requirements
 * 1 x Physical ESXi host or vCenter Server running at least vSphere 6.0u2 or later
 * Windows system
