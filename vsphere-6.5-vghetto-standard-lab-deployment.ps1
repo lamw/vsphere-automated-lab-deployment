@@ -40,7 +40,8 @@ $DeploymentTarget = "VCENTER"
 $NestedESXiApplianceOVA = "C:\Users\primp\Desktop\Nested_ESXi6.5_Appliance_Template_v1.ova"
 $VCSAInstallerPath = "C:\Users\primp\Desktop\VMware-VCSA-all-6.5.0-4944578"
 $NSXOVA =  "C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova"
-$ESXi65aOfflineBundle = "C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip"
+$ESXi65OfflineBundle = "C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip" # Used for offline upgrade only
+$ESXiProfileName = "ESXi-6.5.0-20170404001-standard" # Used for online upgrade only
 
 # Nested ESXi VMs to deploy
 $NestedESXiHostnameToIPs = @{
@@ -112,8 +113,10 @@ $VXLANNetmask = "255.255.255.0"
 # Advanced Configurations
 # Set to 1 only if you have DNS (forward/reverse) for ESXi hostnames
 $addHostByDnsName = 0
-# Upgrade vESXi hosts to 6.5a
-$upgradeESXiTo65a = 0
+# Upgrade vESXi hosts (defaults to pulling upgrade from VMware using profile specified in $ESXiProfileName)
+$upgradeESXi = 0
+# Set to 1 only if you want to upgrade using local bundle specified in $ESXi65OfflineBundle
+$offlineUpgrade = 0
 
 #### DO NOT EDIT BEYOND HERE ####
 
@@ -122,6 +125,7 @@ $vSphereVersion = "6.5"
 $deploymentType = "Standard"
 $random_string = -join ((65..90) + (97..122) | Get-Random -Count 8 | % {[char]$_})
 $VAppName = "vGhetto-Nested-vSphere-Lab-$vSphereVersion-$random_string"
+$depotServer = "https://hostupdate.vmware.com/software/VUM/PRODUCTION/main/vmw-depot-index.xml"
 
 $vcsaSize2MemoryStorageMap = @{
 "tiny"=@{"cpu"="2";"mem"="10";"disk"="250"};
@@ -169,6 +173,25 @@ Function My-Logger {
     $logMessage | Out-File -Append -LiteralPath $verboseLogFile
 }
 
+Function URL-Check([string] $url) {
+    $isWorking = $true
+
+    try {
+        $request = [System.Net.WebRequest]::Create($url)
+        $request.Method = "HEAD"
+        $request.UseDefaultCredentials = $true
+
+        $response = $request.GetResponse()
+        $httpStatus = $response.StatusCode
+
+        $isWorking = ($httpStatus -eq "OK")
+    }
+    catch {
+        $isWorking = $false
+    }
+    return $isWorking
+}
+
 if($preCheck -eq 1) {
     if(!(Test-Path $NestedESXiApplianceOVA)) {
         Write-Host -ForegroundColor Red "`nUnable to find $NestedESXiApplianceOVA ...`nexiting"
@@ -190,13 +213,21 @@ if($preCheck -eq 1) {
             Write-Host -ForegroundColor Red "`nPowerNSX Module is not loaded, please install and load PowerNSX before running script ...`nexiting"
             exit
         }
-        $upgradeESXiTo65a = 1
+        $upgradeESXi = 1
     }
 
-    if($upgradeESXiTo65a -eq 1) {
-         if(!(Test-Path $ESXi65aOfflineBundle)) {
-            Write-Host -ForegroundColor Red "`nUnable to find $ESXi65aOfflineBundle ...`nexiting"
-            exit
+    if($upgradeESXi -eq 1) {
+        if($offlineUpgrade -eq 1) {
+            if(!(Test-Path $ESXi65OfflineBundle)) {
+                Write-Host -ForegroundColor Red "`nUnable to find $ESXi65OfflineBundle ...`nexiting"
+                exit
+            }
+            else {
+                if(!(URL-Check($depotServer))) {
+                    Write-Host -ForegroundColor Red "`nVMware depot server is unavailable ...`nexiting"
+                    exit
+                }
+            }
         }
     }
 }
@@ -219,11 +250,6 @@ if($confirmDeployment -eq 1) {
     if($DeployNSX -eq 1) {
         Write-Host -NoNewline -ForegroundColor Green "NSX Image Path: "
         Write-Host -ForegroundColor White $NSXOVA
-    }
-
-    if($upgradeESXiTo65a -eq 1) {
-        Write-Host -NoNewline -ForegroundColor Green "Extracted ESXi 6.5a Offline Patch Bundle Path: "
-        Write-Host -ForegroundColor White $ESXi65aOfflineBundle
     }
 
     if($DeploymentTarget -eq "ESXI") {
@@ -618,7 +644,8 @@ if($DeployNSX -eq 1) {
     }
 }
 
-if($upgradeESXiTo65a -eq 1) {
+if($upgradeESXi -eq 1) {
+    sleep 60
     $NestedESXiHostnameToIPs.GetEnumerator() | sort -Property Value | Foreach-Object {
         $VMName = $_.Key
         $VMIPAddress = $_.Value
@@ -629,9 +656,17 @@ if($upgradeESXiTo65a -eq 1) {
         My-Logger "Entering Maintenance Mode ..."
         Set-VMHost -VMhost $VMIPAddress -State Maintenance -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
-        My-Logger "Upgrading $VMName to ESXi 6.5a ..."
-        Install-VMHostPatch -VMHost $VMIPAddress -LocalPath $ESXi65aOfflineBundle -HostUsername root -HostPassword $VMPassword -WarningAction SilentlyContinue -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
-
+        if($offlineUpgrade -eq 1) {
+            My-Logger "Upgrading $VMname using offline bundle $ESXi65OfflineBundle ..."
+            Install-VMHostPatch -VMHost $VMIPAddress -LocalPath $ESXi65OfflineBundle -HostUsername root -HostPassword $VMPassword -WarningAction SilentlyContinue -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        }
+        else {
+            My-Logger "Upgrading $VMName image profile ..."
+            $esxcli = Get-EsxCli -VMHost $VMIPAddress -V2
+            $esxcli.network.firewall.ruleset.set.Invoke(@{enabled = 'true' ; rulesetid = 'httpClient'}) | Out-Null 
+            $esxcli.software.profile.update.Invoke(@{profile = $ESXiProfileName; depot = $depotServer}) | Out-File -Append -LiteralPath $verboseLogFile
+        }
+        
         My-Logger "Rebooting $VMName ..."
         Restart-VMHost $VMIPAddress -RunAsync -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
