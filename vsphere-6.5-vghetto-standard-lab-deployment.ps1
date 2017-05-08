@@ -674,7 +674,6 @@ if($upgradeESXi -eq 1) {
         # This is apparently needed due to patching using online image profile taking longer
         Set-PowerCLIConfiguration -WebOperationTimeoutSeconds 900 -Scope Session -Confirm:$false | Out-Null
 
-        My-Logger "Connecting directly to $VMName for ESXi upgrade ..."
         $vESXi = Connect-VIServer -Server $VMIPAddress -User root -Password $VMPassword -WarningAction SilentlyContinue
 
         My-Logger "Entering Maintenance Mode ..."
