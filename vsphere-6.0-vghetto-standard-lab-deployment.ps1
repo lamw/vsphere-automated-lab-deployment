@@ -382,10 +382,11 @@ if($deployVCSA -eq 1) {
     # Deploy using the VCSA CLI Installer
     if($DeploymentTarget -eq "ESXI") {
         $config = (Get-Content -Raw "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_ESXi.json") | convertfrom-json
-        $config.'target.vcsa'.esx.hostname = $VIServer
-        $config.'target.vcsa'.esx.username = $VIUsername
-        $config.'target.vcsa'.esx.password = $VIPassword
-        $config.'target.vcsa'.esx.datastore = $datastore
+        if($config.__version -ge '1.2.0' ) { $esxTarget = 'esxi' } else { $esxTarget = 'esx' }
+		$config.'target.vcsa'.${esxTarget}.hostname = $VIServer
+		$config.'target.vcsa'.${esxTarget}.username = $VIUsername
+		$config.'target.vcsa'.${esxTarget}.password = $VIPassword
+		$config.'target.vcsa'.${esxTarget}.datastore = $datastore
         $config.'target.vcsa'.appliance.'deployment.network' = $VMNetwork
         $config.'target.vcsa'.appliance.'thin.disk.mode' = $true
         $config.'target.vcsa'.appliance.'deployment.option' = $VCSADeploymentSize
@@ -394,7 +395,9 @@ if($deployVCSA -eq 1) {
         $config.'target.vcsa'.network.mode = "static"
         $config.'target.vcsa'.network.ip = $VCSAIPAddress
         $config.'target.vcsa'.network.'dns.servers'[0] = $VMDNS
-        $config.'target.vcsa'.network.'dns.servers'[1] = $null
+		if($config.__version -lt '1.2.0' ) {
+			$config.'target.vcsa'.network.'dns.servers'[1] = $null
+		}
         $config.'target.vcsa'.network.prefix = $VCSAPrefix
         $config.'target.vcsa'.network.gateway = $VMGateway
         $config.'target.vcsa'.network.hostname = $VCSAHostname
