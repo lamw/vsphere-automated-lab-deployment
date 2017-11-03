@@ -626,6 +626,7 @@ if($DeployNSX -eq 1) {
         $ovfconfig.common.vsm_gateway_0.value = $NSXGateway
         $ovfconfig.common.vsm_dns1_0.value = $VMDNS
         $ovfconfig.common.vsm_domain_0.value = $VMDomain
+        $ovfconfig.common.vsm_ntp_0 = $VMNTP
         if($NSXSSHEnable -eq "true") {
             $NSXSSHEnableVar = $true
         } else {
