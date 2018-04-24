@@ -124,7 +124,7 @@ $upgradeESXi = 0
 # Set to 1 only if you want to upgrade using local bundle specified in $ESXi65OfflineBundle
 $offlineUpgrade = 0
 # Enable verbose output to a new PowerShell Console. Thanks to suggestion by Christian Mohn
-$enableVervoseLoggingToNewShell = 1
+$enableVerboseLoggingToNewShell = 1
 
 #### DO NOT EDIT BEYOND HERE ####
 
