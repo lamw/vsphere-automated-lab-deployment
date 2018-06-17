@@ -649,7 +649,7 @@ if($DeployNSX -eq 1) {
 
 if($upgradeESXi -eq 1) {
     sleep 60
-    $NestedESXiHostnameToIPs.GetEnumerator() | sort -Property Value | Foreach-Object {
+    $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
         $VMName = $_.Key
         $VMIPAddress = $_.Value
 
@@ -812,7 +812,7 @@ if($setupNewVC -eq 1) {
     New-Cluster -Server $vc -Name $NewVCVSANClusterName -Location (Get-Datacenter -Name $NewVCDatacenterName -Server $vc) -DrsEnabled -VsanEnabled -VsanDiskClaimMode 'Manual' | Out-File -Append -LiteralPath $verboseLogFile
 
     if($addESXiHostsToVC -eq 1) {
-        $NestedESXiHostnameToIPs.GetEnumerator() | sort -Property Value | Foreach-Object {
+        $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
             $VMName = $_.Key
             $VMIPAddress = $_.Value
 
