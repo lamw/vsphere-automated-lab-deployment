@@ -762,7 +762,7 @@ if($deployVCSA -eq 1) {
         My-Logger "Creating VCSA JSON Configuration file for deployment ..."
         $config | ConvertTo-Json | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
 
-        if($enableVervoseLoggingToNewShell -eq 1) {
+        if($enableVerboseLoggingToNewShell -eq 1) {
             My-Logger "Spawning new PowerShell Console for detailed verbose output ..."
             Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
         }
