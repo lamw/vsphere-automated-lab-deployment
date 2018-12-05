@@ -568,7 +568,7 @@ if($deployNestedESXiVMs -eq 1) {
             $VMIPAddress = $_.Value
 
             $ovfconfig = Get-OvfConfiguration $NestedESXiApplianceOVA
-            $ovfconfig.NetworkMapping.VM_Network_DVPG.value = $VMNetwork
+            $ovfconfig.NetworkMapping.VM_Network.value = $VMNetwork
 
             $ovfconfig.common.guestinfo.hostname.value = $VMName
             $ovfconfig.common.guestinfo.ipaddress.value = $VMIPAddress
@@ -612,7 +612,7 @@ if($deployNestedESXiVMs -eq 1) {
 if($DeployNSX -eq 1) {
     if($DeploymentTarget -eq "VCENTER") {
         $ovfconfig = Get-OvfConfiguration $NSXOVA
-        $ovfconfig.NetworkMapping.VSMgmt.value = $VMNetwork
+        $ovfconfig.NetworkMapping.Management_Network.value = $VMNetwork
 
         $ovfconfig.common.vsm_hostname.value = $NSXHostname
         $ovfconfig.common.vsm_ip_0.value = $NSXIPAddress
@@ -620,7 +620,7 @@ if($DeployNSX -eq 1) {
         $ovfconfig.common.vsm_gateway_0.value = $NSXGateway
         $ovfconfig.common.vsm_dns1_0.value = $VMDNS
         $ovfconfig.common.vsm_domain_0.value = $VMDomain
-        $ovfconfig.common.vsm_ntp_0 = $VMNTP
+        $ovfconfig.common.vsm_ntp_0.value = $VMNTP
         if($NSXSSHEnable -eq "true") {
             $NSXSSHEnableVar = $true
         } else {
