@@ -36,19 +36,19 @@
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.7 lab
 $VIServer = "vcenter.primp-industries.com"
-$VIUsername = "administrator@vsphere.local"
-$VIPassword = "!!!MySuperDuperSecurePassword!!!"
+$VIUsername = 'administrator@vsphere.local'
+$VIPassword = '!!!MySuperDuperSecurePassword!!!'
 
 # Specifies whether deployment is to an ESXi host or vCenter Server
 # Use either ESXI or VCENTER
 $DeploymentTarget = "VCENTER"
 
 # Full Path to both the Nested ESXi 6.7 VA + extracted VCSA 6.7 ISO
-$NestedESXiApplianceOVA = "C:\Users\primp\Desktop\Nested_ESXi6.7_Appliance_Template_v1.ova"
-$VCSAInstallerPath = "C:\Users\primp\Desktop\VMware-VCSA-all-6.7.0-8217866"
-$NSXOVA =  "C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova"
-$ESXi65OfflineBundle = "C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip" # Used for offline upgrade only
-$ESXiProfileName = "ESXi-6.5.0-20170404001-standard" # Used for online upgrade only
+$NestedESXiApplianceOVA = 'C:\Users\primp\Desktop\Nested_ESXi6.7_Appliance_Template_v1.ova'
+$VCSAInstallerPath = 'C:\Users\primp\Desktop\VMware-VCSA-all-6.7.0-8217866'
+$NSXOVA =  'C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova'
+$ESXi65OfflineBundle = 'C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip' # Used for offline upgrade only
+$ESXiProfileName = 'ESXi-6.5.0-20170404001-standard' # Used for online upgrade only
 
 # Nested ESXi VMs to deploy
 $NestedESXiHostnameToIPs = @{
