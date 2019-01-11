@@ -569,7 +569,8 @@ if($deployNestedESXiVMs -eq 1) {
             $VMIPAddress = $_.Value
 
             $ovfconfig = Get-OvfConfiguration $NestedESXiApplianceOVA
-            $ovfconfig.NetworkMapping.VM_Network.value = $VMNetwork
+            $networkMapLabel = ($ovfconfig.ToHashTable().keys | where {$_ -Match "NetworkMapping"}).replace("NetworkMapping.","").replace("-","_")
+            $ovfconfig.NetworkMapping.$networkMapLabel.value = $VMNetwork
 
             $ovfconfig.common.guestinfo.hostname.value = $VMName
             $ovfconfig.common.guestinfo.ipaddress.value = $VMIPAddress
