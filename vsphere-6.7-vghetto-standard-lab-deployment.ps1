@@ -218,7 +218,7 @@ if($preCheck -eq 1) {
             exit
         }
 
-        if(-not (Get-Module -Name "PowerNSX")) {
+        if(-not (Get-Module -Name "PowerNSX" -ListAvailable)) {
             Write-Host -ForegroundColor Red "`nPowerNSX Module is not loaded, please install and load PowerNSX before running script ...`nexiting"
             exit
         }
