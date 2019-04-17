@@ -462,10 +462,11 @@ if($DeploymentTarget -eq "ESXI") {
     $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
     $datacenter = $cluster | Get-Datacenter
     $vmhost = $cluster | Get-VMHost | Select -First 1
+    $vmhostfullcluster = $cluster | Get-VMHost
 
     if($datastore.Type -eq "vsan") {
         My-Logger "VSAN Datastore detected, enabling Fake SCSI Reservations ..."
-        Get-AdvancedSetting -Entity $vmhost -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+        Get-AdvancedSetting -Entity $vmhostfullcluster -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
     }
 }
 
