@@ -728,6 +728,11 @@ if($deployVCSA -eq 1) {
         My-Logger "Creating VCSA JSON Configuration file for deployment ..."
         $config | ConvertTo-Json | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
 
+        if($enableVerboseLoggingToNewShell -eq 1) {
+            My-Logger "Spawning new PowerShell Console for detailed verbose output ..."
+            Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
+        }
+
         My-Logger "Deploying VCSA ..."
         Invoke-Expression "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $($ENV:Temp)\jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
     } else {
