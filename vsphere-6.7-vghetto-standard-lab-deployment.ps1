@@ -46,7 +46,7 @@ $DeploymentTarget = "VCENTER"
 # Full Path to both the Nested ESXi 6.7 VA + extracted VCSA 6.7 ISO
 $NestedESXiApplianceOVA = 'C:\Users\primp\Desktop\Nested_ESXi6.7_Appliance_Template_v1.ova'
 $VCSAInstallerPath = 'C:\Users\primp\Desktop\VMware-VCSA-all-6.7.0-8217866'
-$NSXOVA =  'C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova'
+$NSXOVA =  'C:\Users\primp\Desktop\VMware-NSX-Manager-6.4.4-11197766.ova'
 $ESXi65OfflineBundle = 'C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip' # Used for offline upgrade only
 $ESXiProfileName = 'ESXi-6.5.0-20170404001-standard' # Used for online upgrade only
 
@@ -162,8 +162,8 @@ $addESXiHostsToVC = 1
 $configureVSANDiskGroups = 1
 $clearVSANHealthCheckAlarm = 1
 $configurevMotion = 1
-$setupVXLAN = 0
-$configureNSX = 0
+$setupVXLAN = 1
+$configureNSX = 1
 $moveVMsIntovApp = 1
 
 $StartTime = Get-Date
@@ -218,7 +218,7 @@ if($preCheck -eq 1) {
             exit
         }
 
-        if(-not (Get-Module -Name "PowerNSX")) {
+        if(-not (Get-Module -Name "PowerNSX" -ListAvailable)) {
             Write-Host -ForegroundColor Red "`nPowerNSX Module is not loaded, please install and load PowerNSX before running script ...`nexiting"
             exit
         }
@@ -614,7 +614,7 @@ if($deployNestedESXiVMs -eq 1) {
 if($DeployNSX -eq 1) {
     if($DeploymentTarget -eq "VCENTER") {
         $ovfconfig = Get-OvfConfiguration $NSXOVA
-        $ovfconfig.NetworkMapping.VSMgmt.value = $VMNetwork
+        $ovfconfig.NetworkMapping.Management_Network.value = $VMNetwork  
 
         $ovfconfig.common.vsm_hostname.value = $NSXHostname
         $ovfconfig.common.vsm_ip_0.value = $NSXIPAddress
@@ -622,7 +622,7 @@ if($DeployNSX -eq 1) {
         $ovfconfig.common.vsm_gateway_0.value = $NSXGateway
         $ovfconfig.common.vsm_dns1_0.value = $VMDNS
         $ovfconfig.common.vsm_domain_0.value = $VMDomain
-        $ovfconfig.common.vsm_ntp_0 = $VMNTP
+        $ovfconfig.common.vsm_ntp_0.value = $VMNTP 
         if($NSXSSHEnable -eq "true") {
             $NSXSSHEnableVar = $true
         } else {
