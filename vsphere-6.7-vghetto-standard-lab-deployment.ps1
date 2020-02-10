@@ -33,28 +33,30 @@
 #   * Added support for vCenter Server 6.7, some of the JSON params have changed for consistency purposes which needed to be updated
 #   * Added support for new Nested ESXi 6.7 Virtual Appliance (will need to download that first)
 #   * vMotion is now enabled by default on vmk0 for all Nested ESXi hosts
+# 02/10/2020
+#   * Added support for deploying basic vSphere enviornment (ESXi VM + VCSA) into VMware Cloud on AWS (Nested vSAN not supported)
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.7 lab
-$VIServer = "vcenter.primp-industries.com"
-$VIUsername = 'administrator@vsphere.local'
-$VIPassword = '!!!MySuperDuperSecurePassword!!!'
+$VIServer = "vcenter.sddc-a-b-c-d.vmwarevmc.com"
+$VIUsername = 'cloudadmin@vmc.local'
+$VIPassword = 'FILL-ME-IN'
 
 # Specifies whether deployment is to an ESXi host or vCenter Server
-# Use either ESXI or VCENTER
-$DeploymentTarget = "VCENTER"
+# Use either ESXI or VCENTER or VMC
+$DeploymentTarget = "VMC"
 
 # Full Path to both the Nested ESXi 6.7 VA + extracted VCSA 6.7 ISO
-$NestedESXiApplianceOVA = 'C:\Users\primp\Desktop\Nested_ESXi6.7_Appliance_Template_v1.ova'
-$VCSAInstallerPath = 'C:\Users\primp\Desktop\VMware-VCSA-all-6.7.0-8217866'
-$NSXOVA =  'C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova'
-$ESXi65OfflineBundle = 'C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip' # Used for offline upgrade only
+$NestedESXiApplianceOVA = 'C:\Users\Administrator\Desktop\VMC-Customer0\Nested_ESXi6.7u3_Appliance_Template_v1.ova'
+$VCSAInstallerPath = 'C:\Users\Administrator\Desktop\VMC-Customer0\VMware-VCSA-all-6.7.0-15132721'
+$NSXOVA =  'C:\Users\Administrator\Desktop\VMC-Customer0\VMware-NSX-Manager-6.3.0-5007049.ova'
+$ESXi65OfflineBundle = 'C:\Users\Administrator\Desktop\VMC-Customer0\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip' # Used for offline upgrade only
 $ESXiProfileName = 'ESXi-6.5.0-20170404001-standard' # Used for online upgrade only
 
 # Nested ESXi VMs to deploy
 $NestedESXiHostnameToIPs = @{
-"vesxi67-1" = "172.30.0.50"
-"vesxi67-2" = "172.30.0.51"
-"vesxi67-3" = "172.30.0.52"
+    "vesxi67-1" = "192.168.1.51"
+    "vesxi67-2" = "192.168.1.52"
+    "vesxi67-3" = "192.168.1.53"
 }
 
 # Nested ESXi VM Resources
@@ -66,8 +68,8 @@ $NestedESXiCapacityvDisk = "8" #GB
 # VCSA Deployment Configuration
 $VCSADeploymentSize = "tiny"
 $VCSADisplayName = "vcenter67-1"
-$VCSAIPAddress = "172.30.0.184"
-$VCSAHostname = "vcenter67-1.primp-industries.com" #Change to IP if you don't have valid DNS
+$VCSAIPAddress = "192.168.1.50"
+$VCSAHostname = "vcenter67-1.vmware.corp" #Change to IP if you don't have valid DNS
 $VCSAPrefix = "24"
 $VCSASSODomainName = "vsphere.local"
 $VCSASSOPassword = "VMware1!"
@@ -76,24 +78,28 @@ $VCSASSHEnable = "true"
 
 # General Deployment Configuration for Nested ESXi, VCSA & NSX VMs
 $VirtualSwitchType = "VDS" # VSS or VDS
-$VMNetwork = "dv-vlan333"
-$VMDatastore = "himalaya-local-SATA-dc3500-3"
+$VMNetwork = "sddc-cgw-network-1"
+$VMDatastore = "WorkloadDatastore"
 $VMNetmask = "255.255.255.0"
-$VMGateway = "172.30.0.1"
-$VMDNS = "172.30.0.100"
+$VMGateway = "192.168.1.1"
+$VMDNS = "192.168.1.100"
 $VMNTP = "pool.ntp.org"
-$VMPassword = "vmware123"
-$VMDomain = "primp-industries.com"
-$VMSyslog = "172.30.0.170"
+$VMPassword = "VMware1!"
+$VMDomain = "vmware.corp"
+$VMSyslog = "192.168.1.200"
 # Applicable to Nested ESXi only
 $VMSSH = "true"
 $VMVMFS = "false"
 # Applicable to VC Deployment Target only
-$VMCluster = "Primp-Cluster"
+$VMCluster = "Cluster-1"
+# Defaults for VMC
+$VMDatacenter = "SDDC-Datacenter"
+$VMFolder = "Workloads"
+$VMResourcePool = "Compute-ResourcePool"
 
 # Name of new vSphere Datacenter/Cluster when VCSA is deployed
 $NewVCDatacenterName = "Datacenter"
-$NewVCVSANClusterName = "VSAN-Cluster"
+$NewVCVSANClusterName = "vSphere-Cluster"
 
 # NSX Manager Configuration
 $DeployNSX = 0
@@ -118,13 +124,13 @@ $VXLANNetmask = "255.255.255.0"
 
 # Advanced Configurations
 # Set to 1 only if you have DNS (forward/reverse) for ESXi hostnames
-$addHostByDnsName = 0
+$addHostByDnsName = 1
 # Upgrade vESXi hosts (defaults to pulling upgrade from VMware using profile specified in $ESXiProfileName)
 $upgradeESXi = 0
 # Set to 1 only if you want to upgrade using local bundle specified in $ESXi65OfflineBundle
 $offlineUpgrade = 0
 # Enable verbose output to a new PowerShell Console. Thanks to suggestion by Christian Mohn
-$enableVerboseLoggingToNewShell = 1
+$enableVerboseLoggingToNewShell = 0
 
 #### DO NOT EDIT BEYOND HERE ####
 
@@ -159,8 +165,8 @@ $deployNestedESXiVMs = 1
 $deployVCSA = 1
 $setupNewVC = 1
 $addESXiHostsToVC = 1
-$configureVSANDiskGroups = 1
-$clearVSANHealthCheckAlarm = 1
+$configureVSANDiskGroups = 0
+$clearVSANHealthCheckAlarm = 0
 $configurevMotion = 1
 $setupVXLAN = 0
 $configureNSX = 0
@@ -286,6 +292,15 @@ if($confirmDeployment -eq 1) {
     if($DeploymentTarget -eq "VCENTER") {
         Write-Host -NoNewline -ForegroundColor Green "VM Cluster: "
         Write-Host -ForegroundColor White $VMCluster
+        Write-Host -NoNewline -ForegroundColor Green "VM vApp: "
+        Write-Host -ForegroundColor White $VAppName
+    }
+
+    if($DeploymentTarget -eq "VMC") {
+        Write-Host -NoNewline -ForegroundColor Green "VM Folder: "
+        Write-Host -ForegroundColor White $VMFolder
+        Write-Host -NoNewline -ForegroundColor Green "VM Resource Pool: "
+        Write-Host -ForegroundColor White $VMResourcePool
         Write-Host -NoNewline -ForegroundColor Green "VM vApp: "
         Write-Host -ForegroundColor White $VAppName
     }
@@ -448,23 +463,35 @@ if($DeploymentTarget -eq "ESXI") {
     }
 } else {
     $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore | Select -First 1
-    if($VirtualSwitchType -eq "VSS") {
-        $network = Get-VirtualPortGroup -Server $viConnection -Name $VMNetwork | Select -First 1
-        if($DeployNSX -eq 1) {
-            $privateNetwork = Get-VirtualPortGroup -Server $viConnection -Name $PrivateVXLANVMNetwork | Select -First 1
-        }
+    if($DeploymentTarget -eq "VMC") {
+        $network = Get-VirtualNetwork -Server $viConnection -Name $VMNetwork | Select -First 1
     } else {
-        $network = Get-VDPortgroup -Server $viConnection -Name $VMNetwork | Select -First 1
-        if($DeployNSX -eq 1) {
-            $privateNetwork = Get-VDPortgroup -Server $viConnection -Name $PrivateVXLANVMNetwork | Select -First 1
+        if($VirtualSwitchType -eq "VSS") {
+            $network = Get-VirtualPortGroup -Server $viConnection -Name $VMNetwork | Select -First 1
+            if($DeployNSX -eq 1) {
+                $privateNetwork = Get-VirtualPortGroup -Server $viConnection -Name $PrivateVXLANVMNetwork | Select -First 1
+            }
+        } else {
+            $network = Get-VDPortgroup -Server $viConnection -Name $VMNetwork | Select -First 1
+            if($DeployNSX -eq 1) {
+                $privateNetwork = Get-VDPortgroup -Server $viConnection -Name $PrivateVXLANVMNetwork | Select -First 1
+            }
         }
     }
-    $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
-    $datacenter = $cluster | Get-Datacenter
-    $vmhost = $cluster | Get-VMHost | Select -First 1
-    $vmhostfullcluster = $cluster | Get-VMHost
 
-    if($datastore.Type -eq "vsan") {
+    if($DeploymentTarget -eq "VMC") {
+        $datacenter = Get-Datacenter -Name $VMDatacenter
+        $resourcePool = Get-ResourcePool -Server $viConnection -Name $VMResourcePool
+        $folder = Get-Folder -Server $viConnection -Name $VMFolder
+        $vmhost = (Get-Cluster -Server $viConnection -Name "Cluster-1") | Get-VMHost | Select -First 1
+    } else {
+        $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
+        $datacenter = $cluster | Get-Datacenter
+        $vmhost = $cluster | Get-VMHost | Select -First 1
+        $vmhostfullcluster = $cluster | Get-VMHost
+    }
+
+    if($datastore.Type -eq "vsan" -and $DeploymentTarget -ne "VMC") {
         My-Logger "VSAN Datastore detected, enabling Fake SCSI Reservations ..."
         Get-AdvancedSetting -Entity $vmhostfullcluster -Name "VSAN.FakeSCSIReservations" | Set-AdvancedSetting -Value 1 -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
     }
@@ -589,7 +616,11 @@ if($deployNestedESXiVMs -eq 1) {
             $ovfconfig.common.guestinfo.ssh.value = $VMSSHVar
 
             My-Logger "Deploying Nested ESXi VM $VMName ..."
-            $vm = Import-VApp -Source $NestedESXiApplianceOVA -OvfConfiguration $ovfconfig -Name $VMName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+            if($DeploymentTarget -eq "VMC") {
+                $vm = Import-VApp -Source $NestedESXiApplianceOVA -OvfConfiguration $ovfconfig -Name $VMName -Location $resourcePool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin -InventoryLocation $folder
+            } else {
+                $vm = Import-VApp -Source $NestedESXiApplianceOVA -OvfConfiguration $ovfconfig -Name $VMName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+            }
 
             if($DeployNSX -eq 1) {
                 My-Logger "Connecting Eth1 to $privateNetwork ..."
@@ -612,7 +643,7 @@ if($deployNestedESXiVMs -eq 1) {
 }
 
 if($DeployNSX -eq 1) {
-    if($DeploymentTarget -eq "VCENTER") {
+    if($DeploymentTarget -eq "VCENTER" -or $DeploymentTarget -eq "VMC") {
         $ovfconfig = Get-OvfConfiguration $NSXOVA
         $ovfconfig.NetworkMapping.VSMgmt.value = $VMNetwork
 
@@ -639,7 +670,11 @@ if($DeployNSX -eq 1) {
         $ovfconfig.common.vsm_cli_en_passwd_0.value = $NSXCLIPassword
 
         My-Logger "Deploying NSX VM $NSXDisplayName ..."
-        $vm = Import-VApp -Source $NSXOVA -OvfConfiguration $ovfconfig -Name $NSXDisplayName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+        if($DeploymentTarget -eq "VMC") {
+            $vm = Import-VApp -Source $NSXOVA -OvfConfiguration $ovfconfig -Name $NSXDisplayName -Location $resourcePool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin -InventoryLocation $folder
+        } else {
+            $vm = Import-VApp -Source $NSXOVA -OvfConfiguration $ovfconfig -Name $NSXDisplayName -Location $cluster -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+        }
 
         My-Logger "Updating vCPU Count to $NSXvCPU & vMEM to $NSXvMEM GB ..."
         Set-VM -Server $viConnection -VM $vm -NumCpu $NSXvCPU -MemoryGB $NSXvMEM -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
@@ -744,7 +779,14 @@ if($deployVCSA -eq 1) {
         $config.new_vcsa.vc.deployment_network = $VMNetwork
         $config.new_vcsa.vc.datastore = $datastore
         $config.new_vcsa.vc.datacenter = $datacenter.name
-        $config.new_vcsa.vc.target = $VMCluster
+
+        if($DeploymentTarget -eq "VMC") {
+            #$VMCResourcePool = @("Cluster-1","Resources","Compute-ResourcePool")
+            $config.new_vcsa.vc.target = "VMC_REPLACE"
+        } else {
+            $config.new_vcsa.vc.target = $VMCluster
+        }
+
         $config.new_vcsa.appliance.thin_disk_mode = $true
         $config.new_vcsa.appliance.deployment_option = $VCSADeploymentSize
         $config.new_vcsa.appliance.name = $VCSADisplayName
@@ -766,8 +808,16 @@ if($deployVCSA -eq 1) {
         $config.new_vcsa.sso.password = $VCSASSOPassword
         $config.new_vcsa.sso.domain_name = $VCSASSODomainName
 
+        if($DeploymentTarget -eq "VMC") {
+            $config.new_vcsa.vc | Add-Member -Type NoteProperty -Name 'vm_folder' -Value $VMCVMFolder
+        }
+
         My-Logger "Creating VCSA JSON Configuration file for deployment ..."
         $config | ConvertTo-Json | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
+
+        if($DeploymentTarget -eq "VMC") {
+            (Get-Content -Path "$($ENV:Temp)\jsontemplate.json" -Raw) -replace '"VMC_REPLACE"',"[`"$VMCluster`",`"Resources`",`"$VMResourcePool`"]" | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
+        }
 
         if($enableVerboseLoggingToNewShell -eq 1) {
             My-Logger "Spawning new PowerShell Console for detailed verbose output ..."
@@ -779,9 +829,13 @@ if($deployVCSA -eq 1) {
     }
 }
 
-if($moveVMsIntovApp -eq 1 -and $DeploymentTarget -eq "VCENTER") {
+if($moveVMsIntovApp -eq 1 -and ($DeploymentTarget -eq "VCENTER" -or $DeploymentTarget -eq "VMC")) {
     My-Logger "Creating vApp $VAppName ..."
-    $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
+    if($DeploymentTarget -eq "VMC") {
+         $VApp = New-VApp -Name $VAppName -Server $viConnection -Location (Get-ResourcePool $VMResourcePool)
+    } else {
+        $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
+    }
 
     if($deployNestedESXiVMs -eq 1) {
         My-Logger "Moving Nested ESXi VMs into $VAppName vApp ..."
@@ -815,8 +869,13 @@ if($setupNewVC -eq 1) {
     My-Logger "Creating Datacenter $NewVCDatacenterName ..."
     New-Datacenter -Server $vc -Name $NewVCDatacenterName -Location (Get-Folder -Type Datacenter -Server $vc) | Out-File -Append -LiteralPath $verboseLogFile
 
-    My-Logger "Creating VSAN Cluster $NewVCVSANClusterName ..."
-    New-Cluster -Server $vc -Name $NewVCVSANClusterName -Location (Get-Datacenter -Name $NewVCDatacenterName -Server $vc) -DrsEnabled -VsanEnabled -VsanDiskClaimMode 'Manual' | Out-File -Append -LiteralPath $verboseLogFile
+    if($DeploymentTarget -eq "VMC") {
+        My-Logger "Creating vSphere Cluster $NewVCVSANClusterName ..."
+        New-Cluster -Server $vc -Name $NewVCVSANClusterName -Location (Get-Datacenter -Name $NewVCDatacenterName -Server $vc) -DrsEnabled | Out-File -Append -LiteralPath $verboseLogFile
+    } else {
+        My-Logger "Creating VSAN Cluster $NewVCVSANClusterName ..."
+        New-Cluster -Server $vc -Name $NewVCVSANClusterName -Location (Get-Datacenter -Name $NewVCDatacenterName -Server $vc) -DrsEnabled -VsanEnabled -VsanDiskClaimMode 'Manual' | Out-File -Append -LiteralPath $verboseLogFile
+    }
 
     if($addESXiHostsToVC -eq 1) {
         $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
@@ -856,10 +915,10 @@ if($setupNewVC -eq 1) {
 
             My-Logger "Adding VXLAN VMKernel $vxlanVmkIP to VDS ..."
             New-VMHostNetworkAdapter -VMHost $vmhost -PortGroup $VXLANDVPortgroup -VirtualSwitch $vds -IP $vxlanVmkIP -SubnetMask $VXLANNetmask -Mtu 1600 | Out-File -Append -LiteralPath $verboseLogFile
-       }
+        }
     }
 
-    if($configureVSANDiskGroups -eq 1) {
+    if($configureVSANDiskGroups -eq 1 -and $DeploymentTarget -ne "VMC") {
         My-Logger "Enabling VSAN Space Efficiency/De-Dupe & disabling VSAN Health Check ..."
         Get-VsanClusterConfiguration -Server $vc -Cluster $NewVCVSANClusterName | Set-VsanClusterConfiguration -SpaceEfficiencyEnabled $true -HealthCheckIntervalMinutes 0 | Out-File -Append -LiteralPath $verboseLogFile
 
@@ -878,10 +937,10 @@ if($setupNewVC -eq 1) {
             }
             My-Logger "Creating VSAN DiskGroup for $vmhost ..."
             New-VsanDiskGroup -Server $vc -VMHost $vmhost -SsdCanonicalName $vsanCacheDisk -DataDiskCanonicalName $vsanCapacityDisk | Out-File -Append -LiteralPath $verboseLogFile
-          }
+        }
     }
 
-    if($clearVSANHealthCheckAlarm -eq 1) {
+    if($clearVSANHealthCheckAlarm -eq 1 -and $DeploymentTarget -ne "VMC") {
         My-Logger "Clearing default VSAN Health Check Alarms, not applicable in Nested ESXi env ..."
         $alarmMgr = Get-View AlarmManager -Server $vc
         Get-Cluster -Server $vc | where {$_.ExtensionData.TriggeredAlarmState} | %{
