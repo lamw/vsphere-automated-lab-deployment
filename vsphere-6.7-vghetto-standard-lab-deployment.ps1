@@ -34,7 +34,7 @@
 #   * Added support for new Nested ESXi 6.7 Virtual Appliance (will need to download that first)
 #   * vMotion is now enabled by default on vmk0 for all Nested ESXi hosts
 # 02/10/2020
-#   * Added support for deploying basic vSphere enviornment (ESXi VM + VCSA) into VMware Cloud on AWS (Nested vSAN not supported)
+#   * Added support for deploying basic vSphere environment (ESXi VM + VCSA) into VMware Cloud on AWS (Nested vSAN not supported)
 
 # Physical ESXi host or vCenter Server to deploy vSphere 6.7 lab
 $VIServer = "vcenter.sddc-a-b-c-d.vmwarevmc.com"

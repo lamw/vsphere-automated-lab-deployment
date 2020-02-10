@@ -14,7 +14,7 @@
 
 ## Description
 
-Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that includes a set of Nested ESXi Virtual Appliance(s) configured w/vSAN as well as a vCenter Server Appliance (VCSA) using PowerCLI. For information, you can refer to this blog post [here](http://www.virtuallyghetto.com/2016/11/vghetto-automated-vsphere-lab-deployment-for-vsphere-6-0u2-vsphere-6-5.html) for more details.
+Automated deployment of a fully functional vSphere 6.x environment that includes a set of Nested ESXi Virtual Appliance(s) configured w/vSAN as well as a vCenter Server Appliance (VCSA) using PowerCLI. For information, you can refer to this blog post [here](http://www.virtuallyghetto.com/2016/11/vghetto-automated-vsphere-lab-deployment-for-vsphere-6-0u2-vsphere-6-5.html) for more details.
 
 ## Changelog
 
@@ -35,7 +35,7 @@ Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that
 
   * Added missing dvFilter param to eth1 (missing in Nested ESXi OVA)
 
-* **02/21/27**
+* **02/21/17**
 
   * Support for deploying NSX 6.3 & registering with vCenter Server
   * Support for updating Nested ESXi VM to ESXi 6.5a (required for NSX 6.3)
@@ -49,19 +49,28 @@ Automated deployment of a fully functional vSphere 6.0u2 or 6.5 environment that
   * Support for patching ESXi using VMware Online repo thanks to Matt Lichstein for contribution
   * Added fix to test ESXi endpoint before trying to patch
 
+* **04/18/18**
+  * Added support for vCenter Server 6.7, some of the JSON params have changed for consistency purposes which needed to be updated
+  * Added support for new Nested ESXi 6.7 Virtual Appliance (will need to download that first)
+  * vMotion is now enabled by default on vmk0 for all Nested ESXi hosts
+
+* **02/10/2020**
+  * Added support for deploying basic vSphere environment (ESXi VM + VCSA) into VMware Cloud on AWS (Nested vSAN not supported)
+
+
 ## Requirements
 * 1 x Physical ESXi host or vCenter Server running at least vSphere 6.0u2 or later
 * Windows system
 * [PowerCLI 6.5 R1](https://my.vmware.com/group/vmware/details?downloadGroup=PCLI650R1&productId=568)
 * [PowerNSX](https://github.com/vmware/powernsx) installed and loaded (required if you plan to do NSX 6.3 deployment)
-* vCenter Server Appliance (VCSA) 6.0 or 6.5 extracted ISO
-* Nested ESXi [6.0](http://www.virtuallyghetto.com/2015/12/deploying-nested-esxi-is-even-easier-now-with-the-esxi-virtual-appliance.html) or [6.5](http://www.virtuallyghetto.com/2016/11/esxi-6-5-virtual-appliance-is-now-available.html) Virtual Appliance OVA
+* vCenter Server Appliance (VCSA) 6.x extracted ISO
+* [Nested ESXi 6.x Virtual Appliance OVA](http://vmwa.re/nestedesxi)
 * [NSX 6.3 OVA](https://my.vmware.com/web/vmware/details?downloadGroup=NSXV_630&productId=417&rPId=14427) (optional)
   * [ESXi 6.5a offline patch bundle](https://my.vmware.com/web/vmware/details?downloadGroup=ESXI650A&productId=614&rPId=14229) (extracted)
 
 ## Supported Deployments
 
-The scripts support deploying both a vSphere 6.0 Update 2 as well as vSphere 6.5 environment and there are two types of deployments for each:
+The scripts support deploying both a vSphere 6.x environment and there are two types of deployments for each:
 * **Standard** - All VMs are deployed directly to the physical ESXi host
 * **Self Managed** - Only the Nested ESXi VMs are deployed to physical ESXi host. The VCSA is then bootstrapped onto the first Nested ESXi VM
 
@@ -76,14 +85,15 @@ Here is a quick diagram to help illustrate the two deployment scenarios. The pES
 | vSphere 6.0u2 Standard Deployment | [vsphere-6.0-vghetto-standard-lab-deployment.ps1](vsphere-6.0-vghetto-standard-lab-deployment.ps1) |
 | vSphere 6.5 Self Managed Deployment | [vsphere-6.5-vghetto-self-manage-lab-deployment.ps1](vsphere-6.5-vghetto-self-manage-lab-deployment.ps1) |
 | vSphere 6.0u2 Self Managed Deployment | [vsphere-6.0-vghetto-self-manage-lab-deployment.ps1](vsphere-6.0-vghetto-self-manage-lab-deployment.ps1) |
+| vSphere 6.7 Standard Managed Deployment | [vsphere-6.7-vghetto-standard-lab-deployment.ps1](vsphere-6.7-vghetto-standard-lab-deployment.ps1) |
 
 ## Configuration
 
 This section describes the location of the files required for deployment. The first two are mandatory for the basic deployment. For advanced deployments such as NSX 6.3, you will need to download additional files and below are examples of what is required.
 
 ```console
-$NestedESXiApplianceOVA = "C:\Users\primp\Desktop\Nested_ESXi6.5_Appliance_Template_v1.ova"
-$VCSAInstallerPath = "C:\Users\primp\Desktop\VMware-VCSA-all-6.5.0-4944578"
+$NestedESXiApplianceOVA = 'C:\Users\Administrator\Desktop\VMC-Customer0\Nested_ESXi6.7u3_Appliance_Template_v1.ova'
+$VCSAInstallerPath = 'C:\Users\Administrator\Desktop\VMC-Customer0\VMware-VCSA-all-6.7.0-15132721'
 $NSXOVA =  "C:\Users\primp\Desktop\VMware-NSX-Manager-6.3.0-5007049.ova"
 $ESXi65aOfflineBundle = "C:\Users\primp\Desktop\ESXi650-201701001\vmw-ESXi-6.5.0-metadata.zip"
 ```
@@ -95,7 +105,7 @@ $VIUsername = "root"
 $VIPassword = "vmware123"
 ```
 
-This section describes whether your deployment environment (destination) will be an ESXi host or a vCenter Server. You will need to specify either **ESXI** or **VCENTER** keyword:
+This section describes whether your deployment environment (destination) will be an ESXi host, vCenter Server or VMware Cloud on AWS. You will need to specify either **ESXI**, **VCENTER** or **VMC** keyword:
 ```console
 $DeploymentTarget = "ESXI"
 ```
@@ -103,9 +113,9 @@ $DeploymentTarget = "ESXI"
 This section defines the number of Nested ESXi VMs to deploy along with their associated IP Address(s). The names are merely the display name of the VMs when deployed. At a minimum, you should deploy at least three hosts, but you can always add additional hosts and the script will automatically take care of provisioning them correctly.
 ```console
 $NestedESXiHostnameToIPs = @{
-"vesxi65-1" = "172.30.0.171"
-"vesxi65-2" = "172.30.0.172"
-"vesxi65-3" = "172.30.0.173"
+    "vesxi67-1" = "192.168.1.51"
+    "vesxi67-2" = "192.168.1.52"
+    "vesxi67-3" = "192.168.1.53"
 }
 ```
 
@@ -120,12 +130,11 @@ $NestedESXiCapacityvDisk = "8"
 This section describes the VCSA deployment configuration such as the VCSA deployment size, Networking & SSO configurations. If you have ever used the VCSA CLI Installer, these options should look familiar.
 ```console
 $VCSADeploymentSize = "tiny"
-$VCSADisplayName = "vcenter65-1"
-$VCSAIPAddress = "172.30.0.170"
-$VCSAHostname = "vcenter65-1.primp-industries.com" #Change to IP if you don't have valid DNS
+$VCSADisplayName = "vcenter67-1"
+$VCSAIPAddress = "192.168.1.50"
+$VCSAHostname = "vcenter67-1.vmware.corp" #Change to IP if you don't have valid DNS
 $VCSAPrefix = "24"
-$VCSASSODomainName = "vghetto.local"
-$VCSASSOSiteName = "virtuallyGhetto"
+$VCSASSODomainName = "vsphere.local"
 $VCSASSOPassword = "VMware1!"
 $VCSARootPassword = "VMware1!"
 $VCSASSHEnable = "true"
@@ -133,27 +142,34 @@ $VCSASSHEnable = "true"
 
 This section describes the location as well as the generic networking settings applied to BOTH the Nested ESXi VM and VCSA.
 ```console
-$VirtualSwitchType = "VDS" # VSS or VDS for both $VMNetwork & $PrivateVXLANVMNetwork
-$VMNetwork = "dv-access333-dev"
-$VMDatastore = "himalaya-local-SATA-dc3500-2"
+$VirtualSwitchType = "VDS" # VSS or VDS
+$VMNetwork = "sddc-cgw-network-1"
+$VMDatastore = "WorkloadDatastore"
 $VMNetmask = "255.255.255.0"
-$VMGateway = "172.30.0.1"
-$VMDNS = "172.30.0.100"
+$VMGateway = "192.168.1.1"
+$VMDNS = "192.168.1.100"
 $VMNTP = "pool.ntp.org"
-$VMPassword = "vmware123"
-$VMDomain = "primp-industries.com"
-$VMSyslog = "172.30.0.170"
+$VMPassword = "VMware1!"
+$VMDomain = "vmware.corp"
+$VMSyslog = "192.168.1.200"
+
 # Applicable to Nested ESXi only
 $VMSSH = "true"
 $VMVMFS = "false"
+
 # Applicable to VC Deployment Target only
-$VMCluster = "Primp-Cluster"
+$VMCluster = "Cluster-1"
+
+# Defaults for VMC
+$VMDatacenter = "SDDC-Datacenter"
+$VMFolder = "Workloads"
+$VMResourcePool = "Compute-ResourcePool"
 ```
 
 This section describes the configuration of the new vCenter Server from the deployed VCSA.
 ```console
 $NewVCDatacenterName = "Datacenter"
-$NewVCVSANClusterName = "VSAN-Cluster"
+$NewVCVSANClusterName = "vSphere-Cluster"
 ```
 
 This section describes the NSX configuration if you choose to deploy which will require you to set $DeployNSX property to 1 and fill out all fields.
