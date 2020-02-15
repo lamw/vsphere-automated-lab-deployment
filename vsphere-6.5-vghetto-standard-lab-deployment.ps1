@@ -456,6 +456,8 @@ if($DeploymentTarget -eq "ESXI") {
         }
     }
     $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
+    # Cancel all vApp operations if the target Cluster is NOT DRS enabled
+	if (!$cluster.DrsEnabled) { $moveVMsIntovApp = 0 }
     $datacenter = $cluster | Get-Datacenter
     $vmhost = $cluster | Get-VMHost | Select -First 1
 
@@ -796,6 +798,36 @@ if($moveVMsIntovApp -eq 1 -and $DeploymentTarget -eq "VCENTER") {
         My-Logger "Moving $NSXDisplayName into $VAppName vApp ..."
         Move-VM -VM $nsxVM -Server $viConnection -Destination $VApp -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
     }
+    
+    My-Logger "Configuring vApp $VAppName ..."
+	### Create vApp Config specification ###
+	$vAppSpec = New-Object VMware.Vim.VAppConfigSpec
+	### Set vApp Start Order [$vAppSpec.EntityConfig] ###
+	$VApp.ExtensionData.VAppConfig.EntityConfig | % {
+		if ($NestedESXiHostnameToIPs.GetEnumerator().Name -contains $_.Tag)
+		{
+			$Keys = (($_ | Get-Member -MemberType Property).Where{ $_.Definition -match ';set' }).Name
+			$specEntity = New-Object VMware.Vim.VAppEntityConfigInfo
+			foreach ($Key in $Keys) { $specEntity.$Key = $_.$Key }
+			$specEntity.StartOrder = 1
+			$vAppSpec.EntityConfig += $specEntity
+		}
+	}
+	### Set vApp Product Info [$vAppSpec.Product] ###
+	$specProductInfo = New-Object VMware.Vim.VAppProductInfo
+	$specProductInfo.Name = "$deploymentType Nested ESXi Lab deployment"
+	$specProductInfo.Vendor = 'virtuallyGhetto'
+	$specProductInfo.Version = $vSphereVersion
+	$specProductInfo.FullVersion = Split-Path $NestedESXiApplianceOVA -Leaf
+	$specProductInfo.VendorUrl = 'https://www.virtuallyghetto.com'
+	$specProductInfo.ProductUrl = 'https://www.virtuallyghetto.com/2016/11/esxi-6-5-virtual-appliance-is-now-available.html'
+	$specProductInfo.AppUrl = 'https://github.com/lamw/vghetto-vsphere-automated-lab-deployment'
+	$specProduct = New-Object VMware.Vim.VAppProductSpec
+	$specProduct.Info = $specProductInfo
+	$specProduct.Operation = 'add'
+	$vAppSpec.Product = $specProduct
+	### Apply vApp settings ###
+	$VApp.ExtensionData.UpdateVAppConfig($vAppSpec)
 }
 
 My-Logger "Disconnecting from $VIServer ..."
