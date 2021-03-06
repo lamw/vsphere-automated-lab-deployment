@@ -141,6 +141,30 @@ $random_string = -join ((65..90) + (97..122) | Get-Random -Count 8 | % {[char]$_
 $VAppName = "vGhetto-Nested-vSphere-Lab-$vSphereVersion-$random_string"
 $depotServer = "https://hostupdate.vmware.com/software/VUM/PRODUCTION/main/vmw-depot-index.xml"
 
+
+#default bin for windows
+$vcsaInstallBin = "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe"
+$pwshBin = "powershell.exe"
+$vcsaEsxJson = "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_ESXi.json"
+$vcsaVcJson =  "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_VC.json"
+
+#test if system is linux and set linux path
+if ($IsLinux) {
+    $vcsaInstallBin = "$($VCSAInstallerPath)/vcsa-cli-installer/lin64/vcsa-deploy"
+    $pwshBin = "pwsh"
+    $vcsaEsxJson = "$($VCSAInstallerPath)/vcsa-cli-installer/templates/install/embedded_vCSA_on_ESXi.json"
+    $vcsaVcJson =  "$($VCSAInstallerPath)/vcsa-cli-installer/templates/install/embedded_vCSA_on_VC.json"
+}
+
+#test if system is mac and set linux path
+if ($IsMacOS) {
+    $vcsaInstallBin = "$($VCSAInstallerPath)/vcsa-cli-installer/mac/vcsa-deploy"
+    $pwshBin = "pwsh"
+    $vcsaEsxJson = "$($VCSAInstallerPath)/vcsa-cli-installer/templates/install/embedded_vCSA_on_ESXi.json"
+    $vcsaVcJson =  "$($VCSAInstallerPath)/vcsa-cli-installer/templates/install/embedded_vCSA_on_VC.json"
+}
+
+
 $vcsaSize2MemoryStorageMap = @{
 "tiny"=@{"cpu"="2";"mem"="10";"disk"="250"};
 "small"=@{"cpu"="4";"mem"="16";"disk"="290"};
@@ -733,7 +757,7 @@ if($upgradeESXi -eq 1) {
 if($deployVCSA -eq 1) {
     if($DeploymentTarget -eq "ESXI") {
         # Deploy using the VCSA CLI Installer
-        $config = (Get-Content -Raw "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_ESXi.json") | convertfrom-json
+        $config = (Get-Content -Raw "$($vcsaEsxJson)") | convertfrom-json
         $config.new_vcsa.esxi.hostname = $VIServer
         $config.new_vcsa.esxi.username = $VIUsername
         $config.new_vcsa.esxi.password = $VIPassword
@@ -761,18 +785,21 @@ if($deployVCSA -eq 1) {
         $config.new_vcsa.sso.domain_name = $VCSASSODomainName
 
         My-Logger "Creating VCSA JSON Configuration file for deployment ..."
-        $config | ConvertTo-Json | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
+        $config | ConvertTo-Json | Set-Content -Path "$([System.IO.Path]::GetTempPath())jsontemplate.json"
 
         if($enableVerboseLoggingToNewShell -eq 1) {
             My-Logger "Spawning new PowerShell Console for detailed verbose output ..."
-            Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
+            #Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
+            Start-process $pwshBin -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
         }
 
         My-Logger "Deploying VCSA ..."
-        Invoke-Expression "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $($ENV:Temp)\jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
+        #Invoke-Expression "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $([System.IO.Path]::GetTempPath())jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
+        Invoke-Expression "$($vcsaInstallBin) install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $([System.IO.Path]::GetTempPath())jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
+        
     } else {
         # Deploy using the VCSA CLI Installer
-        $config = (Get-Content -Raw "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_VC.json") | convertfrom-json
+        $config = (Get-Content -Raw "$($vcsaVcJson)") | convertfrom-json
         $config.new_vcsa.vc.hostname = $VIServer
         $config.new_vcsa.vc.username = $VIUsername
         $config.new_vcsa.vc.password = $VIPassword
@@ -813,19 +840,21 @@ if($deployVCSA -eq 1) {
         }
 
         My-Logger "Creating VCSA JSON Configuration file for deployment ..."
-        $config | ConvertTo-Json | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
+        $config | ConvertTo-Json | Set-Content -Path "$([System.IO.Path]::GetTempPath())jsontemplate.json"
 
         if($DeploymentTarget -eq "VMC") {
-            (Get-Content -Path "$($ENV:Temp)\jsontemplate.json" -Raw) -replace '"VMC_REPLACE"',"[`"$VMCluster`",`"Resources`",`"$VMResourcePool`"]" | Set-Content -Path "$($ENV:Temp)\jsontemplate.json"
+            (Get-Content -Path "$([System.IO.Path]::GetTempPath())jsontemplate.json" -Raw) -replace '"VMC_REPLACE"',"[`"$VMCluster`",`"Resources`",`"$VMResourcePool`"]" | Set-Content -Path "$([System.IO.Path]::GetTempPath())jsontemplate.json"
         }
 
         if($enableVerboseLoggingToNewShell -eq 1) {
             My-Logger "Spawning new PowerShell Console for detailed verbose output ..."
-            Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
+            #Start-process powershell.exe -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
+            Start-process $pwshBin -argument "-nologo -noprofile -executionpolicy bypass -command Get-Content $verboseLogFile -Tail 2 -Wait"
         }
 
         My-Logger "Deploying the VCSA ..."
-        Invoke-Expression "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $($ENV:Temp)\jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
+        #Invoke-Expression "$($VCSAInstallerPath)\vcsa-cli-installer\win32\vcsa-deploy.exe install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $([System.IO.Path]::GetTempPath())jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
+        Invoke-Expression "$($vcsaInstallBin) install --no-ssl-certificate-verification --accept-eula --acknowledge-ceip $([System.IO.Path]::GetTempPath())jsontemplate.json"| Out-File -Append -LiteralPath $verboseLogFile
     }
 }
 
