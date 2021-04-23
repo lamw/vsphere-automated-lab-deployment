@@ -51,7 +51,7 @@ $VCSADisplayName = "vcenter60-1"
 $VCSAIPAddress = "172.30.0.50"
 $VCSAHostname = "vcenter60-1.primp-industries.com" #Change to IP if you don't have valid DNS
 $VCSAPrefix = "24"
-$VCSASSODomainName = "vghetto.local"
+$VCSASSODomainName = "vsphere.local"
 $VCSASSOSiteName = "virtuallyGhetto"
 $VCSASSOPassword = "VMware1!"
 $VCSARootPassword = "VMware1!"
@@ -79,11 +79,11 @@ $NewVCVSANClusterName = "VSAN-Cluster"
 
 #### DO NOT EDIT BEYOND HERE ####
 
-$verboseLogFile = "vsphere60-vghetto-lab-deployment.log"
+$verboseLogFile = "vsphere60-lab-deployment.log"
 $vSphereVersion = "6.0u2"
 $deploymentType = "Standard"
 $random_string = -join ((65..90) + (97..122) | Get-Random -Count 8 | % {[char]$_})
-$VAppName = "vGhetto-Nested-vSphere-Lab-$vSphereVersion-$random_string"
+$VAppName = "Nested-vSphere-Lab-$vSphereVersion-$random_string"
 
 $preCheck = 1
 $confirmDeployment = 1
@@ -126,7 +126,7 @@ if($preCheck -eq 1) {
 if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor Magenta "`nPlease confirm the following configuration will be deployed:`n"
 
-    Write-Host -ForegroundColor Yellow "---- vGhetto vSphere Automated Lab Deployment Configuration ---- "
+    Write-Host -ForegroundColor Yellow "---- vSphere Automated Lab Deployment Configuration ---- "
     Write-Host -NoNewline -ForegroundColor Green "Deployment Type: "
     Write-Host -ForegroundColor White $deploymentType
     Write-Host -NoNewline -ForegroundColor Green "vSphere Version: "

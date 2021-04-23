@@ -1,4 +1,4 @@
-# vGhetto Automated vSphere Lab Deployment
+# vSphere Automated Lab Deployment
 
 ## Table of Contents
 
@@ -76,16 +76,16 @@ The scripts support deploying both a vSphere 6.x environment and there are two t
 
 Here is a quick diagram to help illustrate the two deployment scenarios. The pESXi in gray is what you already have deployed which must be running at least ESXi 6.0 Update 2. The rest of the boxes is what the scripts will deploy. In the "Standard" deployment, three Nested ESXi VMs will be deployed to the pESXi host and configured with vSAN. The VCSA will also be deployed directly to the pESXi host and the vCenter Server will be configured to add the three Nested ESXi VMs into its inventory. This is a pretty straight forward and basic deployment, it should not surprise anyone. The "Self Managed" deployment is simliar, however the biggest difference is that rather than the VCSA being deployed directly to the pESXi host like the "Standard" deployment, it will actually be running within the Nested ESXi VM. The way that this deployment scenario works is that we will still deploy three Nested ESXi VM onto the pESXi host, however, the first Nested ESXi VM will be selected as a ["Bootstrap"](http://www.virtuallyghetto.com/2013/09/how-to-bootstrap-vcenter-server-onto_9.html) node which we will then construct a single-node vSAN to then deploy the VCSA. Once the vCenter Server is setup, we will then add the remainder Nested ESXi VMs into its inventory.
 
-![](vsphere-6.5-vghetto-lab-deployment-0.png)
+![](vsphere-6.5-lab-deployment-0.png)
 
 ## Scripts
 | Script Function | Script Download |
 |-----------------|-----------------|
-| vSphere 6.5 Standard Deployment | [vsphere-6.5-vghetto-standard-lab-deployment.ps1](vsphere-6.5-vghetto-standard-lab-deployment.ps1) |
-| vSphere 6.0u2 Standard Deployment | [vsphere-6.0-vghetto-standard-lab-deployment.ps1](vsphere-6.0-vghetto-standard-lab-deployment.ps1) |
-| vSphere 6.5 Self Managed Deployment | [vsphere-6.5-vghetto-self-manage-lab-deployment.ps1](vsphere-6.5-vghetto-self-manage-lab-deployment.ps1) |
-| vSphere 6.0u2 Self Managed Deployment | [vsphere-6.0-vghetto-self-manage-lab-deployment.ps1](vsphere-6.0-vghetto-self-manage-lab-deployment.ps1) |
-| vSphere 6.7 Standard Managed Deployment | [vsphere-6.7-vghetto-standard-lab-deployment.ps1](vsphere-6.7-vghetto-standard-lab-deployment.ps1) |
+| vSphere 6.5 Standard Deployment | [vsphere-6.5-standard-lab-deployment.ps1](vsphere-6.5-standard-lab-deployment.ps1) |
+| vSphere 6.0u2 Standard Deployment | [vsphere-6.0-standard-lab-deployment.ps1](vsphere-6.0-standard-lab-deployment.ps1) |
+| vSphere 6.5 Self Managed Deployment | [vsphere-6.5-self-manage-lab-deployment.ps1](vsphere-6.5-self-manage-lab-deployment.ps1) |
+| vSphere 6.0u2 Self Managed Deployment | [vsphere-6.0-self-manage-lab-deployment.ps1](vsphere-6.0-self-manage-lab-deployment.ps1) |
+| vSphere 6.7 Standard Managed Deployment | [vsphere-6.7-standard-lab-deployment.ps1](vsphere-6.7-standard-lab-deployment.ps1) |
 
 ## Configuration
 
@@ -210,28 +210,28 @@ Once you have saved your changes, you can now run the PowerCLI script as you nor
 
 ## Logging
 
-There is additional verbose logging that outputs as a log file in your current working directory either **vsphere60-vghetto-lab-deployment.log** or **vsphere65-vghetto-lab-deployment.log** depending on the deployment you have selected.
+There is additional verbose logging that outputs as a log file in your current working directory either **vsphere60-lab-deployment.log** or **vsphere65-lab-deployment.log** depending on the deployment you have selected.
 
 ## Verification
 
 Once you have saved all your changes, you can then run the script. You will be provided with a summary of what will be deployed and you can verify that everything is correct before attempting the deployment. Below is a screenshot on what this would look like:
 
-![](vsphere-6.5-vghetto-lab-deployment-4-new.png)
+![](vsphere-6.5-lab-deployment-4-new.png)
 
 ## Sample Executions
 
 Here is an example of running a vSphere 6.5 "Standard" deployment including NSX 6.3:
 
-![](vsphere-6.5-vghetto-lab-deployment-1-new.png)
+![](vsphere-6.5-lab-deployment-1-new.png)
 
 Here is an example of running a vSphere 6.5 "Self Managed" deployment:
 
-![](vsphere-6.5-vghetto-lab-deployment-2.png)
+![](vsphere-6.5-lab-deployment-2.png)
 
 If everything is succesful, you can now login to your new vCenter Server and you should either see the following for a **"Standard"** deployment:
 
-![](vsphere-6.5-vghetto-lab-deployment-5.png)
+![](vsphere-6.5-lab-deployment-5.png)
 
 or the following for **"Self Managed"** deployment:
 
-![](vsphere-6.5-vghetto-lab-deployment-6.png)
+![](vsphere-6.5-lab-deployment-6.png)
