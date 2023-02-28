@@ -60,6 +60,7 @@ Automated deployment of a fully functional vSphere 6.x environment that includes
 
 ## Requirements
 * 1 x Physical ESXi host or vCenter Server running at least vSphere 6.0u2 or later
+* DRS-enabled Cluster (not required but vApp creation will not be possible)
 * Windows system
 * [PowerCLI 6.5 R1](https://my.vmware.com/group/vmware/details?downloadGroup=PCLI650R1&productId=568)
 * [PowerNSX](https://github.com/vmware/powernsx) installed and loaded (required if you plan to do NSX 6.3 deployment)

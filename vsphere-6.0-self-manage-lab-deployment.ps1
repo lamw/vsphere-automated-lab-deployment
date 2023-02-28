@@ -383,15 +383,20 @@ if($deployNestedESXiVMs -eq 1) {
     }
 
     if($moveVMsIntovApp -eq 1 -and $DeploymentTarget -eq "VCENTER") {
-        My-Logger "Creating vApp $VAppName ..."
-        $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
+        # Check whether DRS is enabled as that is required to create vApp
+        if((Get-Cluster -Server $viConnection $cluster).DrsEnabled) {
+            My-Logger "Creating vApp $VAppName ..."
+            $VApp = New-VApp -Name $VAppName -Server $viConnection -Location $cluster
 
-        if($deployNestedESXiVMs -eq 1) {
-            My-Logger "Moving Nested ESXi VMs into $VAppName vApp ..."
-            $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
-                $vm = Get-VM -Name $_.Key -Server $viConnection
-                Move-VM -VM $vm -Server $viConnection -Destination $VApp -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+            if($deployNestedESXiVMs -eq 1) {
+                My-Logger "Moving Nested ESXi VMs into $VAppName vApp ..."
+                $NestedESXiHostnameToIPs.GetEnumerator() | Sort-Object -Property Value | Foreach-Object {
+                    $vm = Get-VM -Name $_.Key -Server $viConnection
+                    Move-VM -VM $vm -Server $viConnection -Destination $VApp -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
+                }
             }
+        } else {
+            My-Logger "vApp $VAppName will NOT be created as DRS is NOT enabled on vSphere Cluster ${cluster} ..."
         }
     }
 
